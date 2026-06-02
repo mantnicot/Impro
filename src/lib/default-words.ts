@@ -31,3 +31,7 @@ export const FAVORITES_LIST_ID = "favoritos";
 export const FAVORITES_LIST_NAME = "Favoritos";
 export const RANDOM_LIST_ID = "aleatorio";
 export const RANDOM_LIST_NAME = "Aleatorio";
+
+export function getRandomObject(): string {
+  return DEFAULT_OBJECTS[Math.floor(Math.random() * DEFAULT_OBJECTS.length)];
+}

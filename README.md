@@ -16,6 +16,12 @@ Aplicación web interactiva para improvisación teatral del grupo **TAVA**. Gene
 - **Logo TAVA** — Carga tu logo desde Ajustes
 - **PWA** — Instalable en móvil y escritorio
 
+### Tres módulos (barra inferior)
+
+- **🎲 Palabras** — Ruleta de objetos (aleatorio, listas; favoritos en menú ☰)
+- **🎭 Escenas** — Lugares, personajes y características colombianas
+- **🎵 Ambientes** — Géneros con enlaces de YouTube editables (**✏️ Editar enlaces**)
+
 ## Inicio rápido
 
 ### Opción 1: Acceso directo (Windows)
@@ -63,7 +69,7 @@ src/
 ├── app/              # Páginas y API routes
 ├── components/       # UI teatral reutilizable
 ├── hooks/            # React Query, gestos
-├── lib/              # Storage, sonidos, palabras
+├── lib/              # Storage, sonidos, palabras, impro colombiana, ambientes
 └── types/            # TypeScript
 public/
 ├── icons/            # Iconos PWA
