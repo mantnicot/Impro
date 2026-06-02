@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Objetos de Cocina",
+    "words": ["Olla", "Sartén", "Cuchillo", "Tenedor", "Cuchara", "Plato", "Taza", "Batidora", "Microondas", "Refrigerador", "Colador", "Rallador", "Exprimidor", "Abrelatas", "Termo"]
+  },
+  {
+    "name": "Instrumentos Musicales",
+    "words": ["Guitarra", "Piano", "Violín", "Trompeta", "Flauta", "Batería", "Saxofón", "Acordeón", "Arpa", "Clarinete", "Tambor", "Maracas", "Armónica", "Xilófono"]
+  },
+  {
+    "name": "Herramientas",
+    "words": ["Martillo", "Destornillador", "Taladro", "Sierra", "Llave inglesa", "Alicates", "Cinta métrica", "Nivel", "Escalera", "Pala", "Hacha", "Carretilla"]
+  }
+]
