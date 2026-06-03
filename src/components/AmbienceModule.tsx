@@ -10,8 +10,20 @@ import { getAmbienceGenres } from "@/lib/ambience-genre-storage";
 import { unlockAudio } from "@/lib/sounds";
 
 export function AmbienceModule() {
-  const { volume, setVolume, playing, activeGenre, error, playGenre, pause, stop, toggle } =
-    useAmbiencePlayer();
+  const {
+    volume,
+    setVolume,
+    playing,
+    activeGenre,
+    error,
+    loading,
+    needsUnlock,
+    unlockPlayer,
+    playGenre,
+    pause,
+    stop,
+    toggle,
+  } = useAmbiencePlayer();
   const [genres, setGenres] = useState<AmbienceGenre[]>([]);
   const [editorOpen, setEditorOpen] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
@@ -79,6 +91,19 @@ export function AmbienceModule() {
           Mostrar video de fondo (baja opacidad)
         </label>
 
+        {needsUnlock && (
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            disabled={loading}
+            onClick={() => void unlockPlayer()}
+            className="mt-4 w-full rounded-2xl border-2 border-tava-purple bg-tava-purple px-4 py-4 text-center text-sm font-bold text-white shadow-lg disabled:opacity-60"
+          >
+            {loading ? "Activando…" : "🔊 Activar audio (requerido en móvil)"}
+          </motion.button>
+        )}
+
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {genres.map((genre) => (
             <motion.button
@@ -129,6 +154,9 @@ export function AmbienceModule() {
                   {activeGenre.emoji} {activeGenre.label}
                 </p>
               </>
+            )}
+            {loading && !error && (
+              <p className="mt-2 text-xs text-tava-purple/80">Cargando audio…</p>
             )}
             {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
 

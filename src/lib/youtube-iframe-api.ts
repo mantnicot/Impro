@@ -3,7 +3,14 @@ export function loadYouTubeIframeAPI(): Promise<void> {
   if (window.YT?.Player) return Promise.resolve();
 
   return new Promise((resolve) => {
-    const done = () => resolve();
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      if (!window.YT?.Player) return;
+      settled = true;
+      resolve();
+    };
+
     const prev = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = () => {
       prev?.();
@@ -17,6 +24,16 @@ export function loadYouTubeIframeAPI(): Promise<void> {
       document.head.appendChild(tag);
     }
 
-    if (window.YT?.Player) done();
+    done();
+
+    const poll = window.setInterval(() => {
+      done();
+      if (settled) window.clearInterval(poll);
+    }, 150);
+
+    window.setTimeout(() => {
+      window.clearInterval(poll);
+      done();
+    }, 20000);
   });
 }

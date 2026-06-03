@@ -17,7 +17,10 @@ const ITEMS: { id: AppModule; label: string; icon: string }[] = [
 
 export function MainModuleNav({ active, onChange }: MainModuleNavProps) {
   return (
-    <nav className="relative z-20 border-t border-gray-200/80 bg-white/90 px-2 py-2 backdrop-blur-md">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200/80 bg-white/95 px-2 pt-2 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] backdrop-blur-md pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]"
+      aria-label="Módulos principales"
+    >
       <div className="mx-auto grid max-w-md grid-cols-3 gap-1">
         {ITEMS.map((item) => {
           const isActive = active === item.id;

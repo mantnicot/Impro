@@ -7,14 +7,23 @@ import {
   pauseYoutubeAmbience,
   stopYoutubeAmbience,
   setYoutubeVolume,
+  warmupYoutubePlayer,
+  isYoutubePlayerWarm,
 } from "@/lib/youtube-ambience-player";
 import { unlockAudio } from "@/lib/sounds";
+import { isTouchDevice } from "@/lib/device";
 
 export function useAmbiencePlayer() {
   const [volume, setVolumeState] = useState(0.7);
   const [playing, setPlaying] = useState(false);
   const [activeGenre, setActiveGenre] = useState<AmbienceGenre | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [needsUnlock, setNeedsUnlock] = useState(false);
+
+  useEffect(() => {
+    setNeedsUnlock(isTouchDevice() && !isYoutubePlayerWarm());
+  }, []);
 
   useEffect(() => {
     setYoutubeVolume(volume);
@@ -28,26 +37,53 @@ export function useAmbiencePlayer() {
   const stop = useCallback(() => {
     stopYoutubeAmbience();
     setPlaying(false);
+    setLoading(false);
   }, []);
 
-  const playGenre = useCallback(async (genre: AmbienceGenre) => {
-    await unlockAudio();
-    const videoId = parseYoutubeVideoId(genre.youtubeUrl);
-    if (!videoId) {
-      setError("Enlace de YouTube no válido");
-      setPlaying(false);
-      return;
-    }
+  const unlockPlayer = useCallback(async () => {
     setError(null);
-    setActiveGenre(genre);
+    setLoading(true);
     try {
-      await playYoutubeAmbience({ videoId });
-      setPlaying(true);
+      await unlockAudio();
+      await warmupYoutubePlayer();
+      setNeedsUnlock(false);
     } catch {
-      setError("No se pudo reproducir. Revisa el enlace o tu conexión.");
-      setPlaying(false);
+      setError("No se pudo activar el reproductor. Comprueba tu conexión.");
+    } finally {
+      setLoading(false);
     }
   }, []);
+
+  const playGenre = useCallback(
+    async (genre: AmbienceGenre) => {
+      if (isTouchDevice() && !isYoutubePlayerWarm()) {
+        setError("Primero pulsa «Activar audio».");
+        return;
+      }
+
+      await unlockAudio();
+      const videoId = parseYoutubeVideoId(genre.youtubeUrl);
+      if (!videoId) {
+        setError("Enlace de YouTube no válido");
+        setPlaying(false);
+        return;
+      }
+      setError(null);
+      setActiveGenre(genre);
+      setLoading(true);
+      try {
+        await playYoutubeAmbience({ videoId }, volume);
+        setPlaying(true);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "No se pudo reproducir.";
+        setError(msg);
+        setPlaying(false);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [volume]
+  );
 
   const pause = useCallback(() => {
     pauseYoutubeAmbience();
@@ -65,9 +101,12 @@ export function useAmbiencePlayer() {
     playing,
     activeGenre,
     error,
+    loading,
+    needsUnlock,
+    unlockPlayer,
     playGenre,
     pause,
     stop,
     toggle,
   };
-}
+};

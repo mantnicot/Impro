@@ -101,7 +101,7 @@ export default function HomePage() {
 
   if (!ready) {
     return (
-      <div className="flex h-screen items-center justify-center bg-theater-gradient">
+      <div className="flex h-[100dvh] items-center justify-center bg-theater-gradient">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
@@ -164,7 +164,7 @@ export default function HomePage() {
   const { title, subtitle } = MODULE_COPY[module];
 
   return (
-    <div className="relative flex h-screen flex-col overflow-hidden bg-theater-gradient">
+    <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-theater-gradient">
       <TheaterLights />
 
       <header className="relative z-10 flex shrink-0 items-center justify-between px-4 py-3 sm:px-6">
@@ -178,7 +178,7 @@ export default function HomePage() {
         </button>
       </header>
 
-      <main className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
+      <main className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden pb-[calc(4.25rem+env(safe-area-inset-bottom,0px))]">
         <motion.div
           key={module}
           initial={{ opacity: 0, y: 8 }}
