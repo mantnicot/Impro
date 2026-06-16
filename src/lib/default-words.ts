@@ -63,6 +63,23 @@ export const DEFAULT_OBJECTS = [
   "Ticket de lotería", "Foto polaroid", "Carta sin abrir", "Dado trucado",
   "Moneda australiana", "Medalla olímpica falsa", "Capa de superhéroe", "Varita de director",
   "Telón rojo", "Micrófono de pie", "Foco de teatro", "Programa de mano",
+  // Objetos colombianos
+  "Arepa", "Empanada", "Ajiaco", "Bandeja paisa", "Changua", "Buñuelo", "Oblea",
+  "Mazamorra", "Aguapanela", "Chocoramo", "Achiras", "Almojábana", "Pandebono",
+  "Roscon", "Tamal", "Sancocho", "Lechona", "Fritanga", "Picada", "Mazorca",
+  "Aguardiente", "Chicha", "Refajo", "Café tinto", "Greca", "Pitillo", "Bolsa de pan",
+  "Sombrero vueltiao", "Ruana", "Carriel", "Poncho", "Mochila Wayuu", "Sombrero aguadeño",
+  "Chiva", "Buseta", "Transmilenio", "Carro lechero", "Motocarro", "Bicitaxi",
+  "Palco de feria", "Silleta", "Flores de Silleteros", "Vela de pueblo", "Petardo",
+  "Acordeón vallenato", "Guacharaca", "Caja vallenata", "Tambora", "Tiple",
+  "Ruana de lana", "Carroza", "Balde de arepa", "Olla de barro", "Caldero",
+  "Panela", "Piloncillo", "Bocadillo veleño", "Bocadillo de guayaba", "Copo de nieve",
+  "Carriel antioqueño", "Sombrero de paja tolimense", "Ruana cafetera", "Jugo de lulo",
+  "Guanábana", "Curuba", "Feijoa", "Granadilla", "Chontaduro", "Uchuva", "Tomate de árbol",
+  "Plátano verde", "Patacón", "Hogao", "Ají", "Limonada de coco", "Salpicón",
+  "Raspao", "Chuzo", "Perro caliente con piña", "Almojábana con chocolate",
+  "Libreta de calificaciones", "Escarapela", "Bandera tricolor", "Escudo de Colombia",
+  "Ruana en la silla", "Carriel de cuero", "Sombrero campesino", "Botella de Pony Malta",
 ];
 
 export const FAVORITES_LIST_ID = "favoritos";

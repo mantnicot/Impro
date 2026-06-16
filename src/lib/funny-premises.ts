@@ -147,6 +147,17 @@ export const PREMISE_CATEGORIES: PremiseCategory[] = [
   },
 ];
 
+const ALL_PREMISES = PREMISE_CATEGORIES.flatMap((c) => c.premises);
+
+export function drawRandomPremise(exclude?: string): string {
+  if (ALL_PREMISES.length === 0) return "Toca para generar una premisa";
+  const pool =
+    exclude && ALL_PREMISES.length > 1
+      ? ALL_PREMISES.filter((p) => p !== exclude)
+      : ALL_PREMISES;
+  return pool[Math.floor(Math.random() * pool.length)]!;
+}
+
 export function getRandomPremise(categoryId: string, exclude?: string): string {
   const category = PREMISE_CATEGORIES.find((c) => c.id === categoryId);
   if (!category || category.premises.length === 0) return "…";

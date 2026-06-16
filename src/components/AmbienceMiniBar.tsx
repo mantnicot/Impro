@@ -20,7 +20,7 @@ export function AmbienceMiniBar({ hidden = false }: AmbienceMiniBarProps) {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="fixed left-3 right-[5.5rem] z-[55] mx-auto max-w-md rounded-xl border border-tava-purple/30 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-md bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] sm:left-auto sm:right-24 sm:max-w-xs"
+      className="fixed left-[5.5rem] right-3 z-[55] mx-auto max-w-md rounded-xl border border-tava-purple/30 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-md bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] sm:left-auto sm:right-5 sm:max-w-xs"
     >
       <div className="flex items-center gap-2">
         <span className="text-lg">{activeGenre.emoji}</span>
