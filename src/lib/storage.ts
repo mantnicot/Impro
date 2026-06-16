@@ -5,6 +5,7 @@ import {
   FAVORITES_LIST_ID,
   FAVORITES_LIST_NAME,
 } from "./default-words";
+import { shuffleAvoidingRecent } from "@/lib/shuffle";
 
 const DB_NAME = "tava-roulette";
 const DB_VERSION = 1;
@@ -146,9 +147,31 @@ export async function removeFromFavorites(word: string): Promise<void> {
   await tx.done;
 }
 
-export function getRandomWords(count = 50): string[] {
-  const shuffled = [...DEFAULT_OBJECTS].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, Math.min(count, shuffled.length));
+const RECENT_OBJECTS_KEY = "tava-recent-objects";
+const RECENT_MAX = 40;
+
+function loadRecentObjects(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(RECENT_OBJECTS_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function rememberShownObjects(words: string[]): void {
+  if (typeof window === "undefined" || words.length === 0) return;
+  const prev = loadRecentObjects();
+  const merged = [...words, ...prev].slice(0, RECENT_MAX);
+  localStorage.setItem(RECENT_OBJECTS_KEY, JSON.stringify(merged));
+}
+
+export function getRandomWords(count?: number): string[] {
+  const total = DEFAULT_OBJECTS.length;
+  const n = count ?? total;
+  const recent = loadRecentObjects();
+  return shuffleAvoidingRecent(DEFAULT_OBJECTS, recent, Math.min(n, total));
 }
 
 export function getSettings(): AppSettings {

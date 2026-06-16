@@ -18,6 +18,11 @@ const config: Config = {
           "blue-dark": "#EDE9FE",
           "neon-pink": "#DB2777",
           "show-yellow": "#EAB308",
+          curtain: {
+            DEFAULT: "#8B0000",
+            dark: "#4A0000",
+            light: "#B22222",
+          },
         },
       },
       fontFamily: {

@@ -12,6 +12,8 @@ import { SettingsPanel, StatsPanel } from "@/components/SettingsPanel";
 import { MainModuleNav, type AppModule } from "@/components/MainModuleNav";
 import { ImproColombiaModule } from "@/components/ImproColombiaModule";
 import { AmbienceModule } from "@/components/AmbienceModule";
+import { PremisesModule } from "@/components/PremisesModule";
+import { AmbienceMiniBar } from "@/components/AmbienceMiniBar";
 import {
   initStorage,
   getAllLists,
@@ -50,6 +52,10 @@ const MODULE_COPY: Record<AppModule, { title: string; subtitle: string }> = {
     title: "Ambientes musicales",
     subtitle: "Géneros con enlaces de YouTube",
   },
+  premises: {
+    title: "Premisas chistosas",
+    subtitle: "Tarjetas para improvisar en grupo",
+  },
 };
 
 export default function HomePage() {
@@ -75,7 +81,7 @@ export default function HomePage() {
 
   const startRandom = () => {
     void unlockAudio();
-    setGame({ listName: RANDOM_LIST_NAME, words: getRandomWords(100), useAllWords: false });
+    setGame({ listName: RANDOM_LIST_NAME, words: getRandomWords(), useAllWords: false });
     setScreen("game");
   };
 
@@ -156,6 +162,7 @@ export default function HomePage() {
         )}
         {panel === "settings" && <SettingsPanel onClose={() => setPanel(null)} />}
         {panel === "stats" && <StatsPanel onClose={() => setPanel(null)} />}
+        <AmbienceMiniBar />
       </>
     );
   }
@@ -248,9 +255,11 @@ export default function HomePage() {
         )}
 
         {module === "scenes" && <ImproColombiaModule />}
+        {module === "premises" && <PremisesModule />}
         {module === "ambiences" && <AmbienceModule />}
       </main>
 
+      <AmbienceMiniBar hidden={module === "ambiences"} />
       <MainModuleNav active={module} onChange={setModule} />
 
       <QuickMenu

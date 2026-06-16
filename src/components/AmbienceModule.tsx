@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { useAmbiencePlayer } from "@/hooks/useAmbiencePlayer";
-import { YoutubeAmbienceHost } from "@/components/YoutubeAmbienceHost";
+import { useAmbienceContext } from "@/context/AmbienceContext";
 import { AmbienceGenreEditor } from "@/components/AmbienceGenreEditor";
-import { genreTheme, type AmbienceGenre } from "@/lib/ambience-genres";
+import { genreTheme } from "@/lib/ambience-genres";
 import { getAmbienceGenres } from "@/lib/ambience-genre-storage";
 import { unlockAudio } from "@/lib/sounds";
 
@@ -23,17 +22,18 @@ export function AmbienceModule() {
     pause,
     stop,
     toggle,
-  } = useAmbiencePlayer();
-  const [genres, setGenres] = useState<AmbienceGenre[]>([]);
+    showVideo,
+    setShowVideo,
+  } = useAmbienceContext();
+  const [genres, setGenres] = useState(() => getAmbienceGenres());
   const [editorOpen, setEditorOpen] = useState(false);
-  const [showVideo, setShowVideo] = useState(false);
 
   useEffect(() => {
     setGenres(getAmbienceGenres());
   }, []);
 
   const selectGenre = useCallback(
-    async (genre: AmbienceGenre) => {
+    async (genre: (typeof genres)[0]) => {
       void unlockAudio();
       stop();
       await playGenre(genre);
@@ -50,8 +50,6 @@ export function AmbienceModule() {
         theme ? `bg-gradient-to-b ${theme.bg}` : ""
       }`}
     >
-      <YoutubeAmbienceHost showVideo={showVideo && playing} />
-
       {theme && (
         <motion.div
           key={activeGenre?.id}
@@ -69,7 +67,7 @@ export function AmbienceModule() {
               Ambientes por género
             </h2>
             <p className={`mt-0.5 text-xs ${isDark ? "text-white/60" : "text-gray-500"}`}>
-              YouTube · solo audio (o activa video de fondo)
+              YouTube · sigue sonando al cambiar de módulo
             </p>
           </div>
           <button

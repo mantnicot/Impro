@@ -6,6 +6,8 @@ import {
   getOrFetchImage,
   prefetchImagesParallel,
 } from "@/lib/image-search";
+import { shuffledCopy } from "@/lib/shuffle";
+import { rememberShownObjects } from "@/lib/storage";
 
 interface PreparedWord {
   word: string;
@@ -13,14 +15,18 @@ interface PreparedWord {
   index: number;
 }
 
+const SESSION_RECENT_MAX = 25;
+
 export function useGameImages(words: string[], enabled: boolean, useAllWords = false) {
   const [current, setCurrent] = useState<PreparedWord | null>(null);
   const [preparing, setPreparing] = useState(false);
   const shuffledRef = useRef<string[]>([]);
+  const sessionRecentRef = useRef<string[]>([]);
   const wordsKey = useMemo(() => words.join("\0"), [words]);
 
   useEffect(() => {
-    shuffledRef.current = useAllWords ? [...words] : [...words].sort(() => Math.random() - 0.5);
+    shuffledRef.current = useAllWords ? [...words] : shuffledCopy(words);
+    sessionRecentRef.current = [];
     setCurrent(null);
     if (shuffledRef.current.length > 0) {
       void prefetchImagesParallel(
@@ -28,6 +34,31 @@ export function useGameImages(words: string[], enabled: boolean, useAllWords = f
       );
     }
   }, [wordsKey, useAllWords, words]);
+
+  const rememberWord = useCallback((word: string) => {
+    const key = word.trim().toLowerCase();
+    const recent = sessionRecentRef.current.filter((w) => w.toLowerCase() !== key);
+    sessionRecentRef.current = [word, ...recent].slice(0, SESSION_RECENT_MAX);
+    rememberShownObjects([word]);
+  }, []);
+
+  const findNextIndex = useCallback(
+    (fromIndex: number, direction: 1 | -1): number => {
+      const list = shuffledRef.current;
+      if (list.length === 0) return 0;
+
+      const recent = new Set(sessionRecentRef.current.map((w) => w.trim().toLowerCase()));
+
+      for (let step = 1; step <= list.length; step++) {
+        const normalized = (fromIndex + step * direction + list.length) % list.length;
+        const candidate = list[normalized];
+        if (!recent.has(candidate.trim().toLowerCase())) return normalized;
+      }
+
+      return (fromIndex + direction + list.length) % list.length;
+    },
+    []
+  );
 
   const loadWordAtIndex = useCallback(async (index: number): Promise<PreparedWord | null> => {
     const list = shuffledRef.current;
@@ -67,9 +98,10 @@ export function useGameImages(words: string[], enabled: boolean, useAllWords = f
   const initGame = useCallback(async () => {
     setPreparing(true);
     const first = await prepareFromIndex(0);
+    if (first) rememberWord(first.word);
     setCurrent(first);
     setPreparing(false);
-  }, [prepareFromIndex]);
+  }, [prepareFromIndex, rememberWord]);
 
   useEffect(() => {
     if (!enabled || words.length === 0) return;
@@ -80,19 +112,21 @@ export function useGameImages(words: string[], enabled: boolean, useAllWords = f
     async (direction: "next" | "prev"): Promise<PreparedWord | null> => {
       if (!current) return null;
 
-      const list = shuffledRef.current;
       const step = direction === "next" ? 1 : -1;
-      const newIndex = (current.index + step + list.length) % list.length;
+      const newIndex = useAllWords
+        ? (current.index + step + shuffledRef.current.length) % shuffledRef.current.length
+        : findNextIndex(current.index, step as 1 | -1);
 
       setPreparing(true);
       const next = useAllWords
         ? await loadWordAtIndex(newIndex)
         : await prepareFromIndex(newIndex);
+      if (next) rememberWord(next.word);
       setCurrent(next);
       setPreparing(false);
       return next;
     },
-    [current, loadWordAtIndex, prepareFromIndex, useAllWords]
+    [current, findNextIndex, loadWordAtIndex, prepareFromIndex, rememberWord, useAllWords]
   );
 
   const warmUp = useCallback(() => {
