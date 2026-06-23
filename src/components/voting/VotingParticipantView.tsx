@@ -27,8 +27,9 @@ export function VotingParticipantView() {
       if (data.results) setResults(data.results);
 
       if (data.session?.id) {
+        const round = data.session.current_round ?? 1;
         const vRes = await fetch(
-          `/api/voting/vote?sessionId=${data.session.id}&voterId=${encodeURIComponent(voterId)}`
+          `/api/voting/vote?sessionId=${data.session.id}&voterId=${encodeURIComponent(voterId)}&round=${round}`
         );
         if (vRes.ok) {
           const vData = await vRes.json();
@@ -70,6 +71,7 @@ export function VotingParticipantView() {
           🏆 Resultados finales
         </h2>
         <p className="mt-1 text-center text-sm text-gray-500">{session.title}</p>
+        <p className="mt-1 text-center text-xs text-gray-400">Puntos acumulados de todas las rondas</p>
         <div className="mt-6">
           <VotingResults results={results} reveal />
         </div>
@@ -77,17 +79,20 @@ export function VotingParticipantView() {
     );
   }
 
+  const round = session?.current_round ?? 1;
+
   return (
     <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-8">
       <div className="text-center">
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Sala {code}</p>
         <h2 className="font-display text-xl font-bold text-gray-800">{session?.title ?? "Votación TAVA"}</h2>
+        <p className="mt-1 text-xs font-semibold text-tava-purple">Ronda {round}</p>
         <p
           className={`mt-2 inline-block rounded-full px-4 py-1 text-xs font-bold ${
             session?.is_open ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
           }`}
         >
-          {session?.is_open ? "Puedes votar ahora" : "Votación cerrada — espera resultados"}
+          {session?.is_open ? "Puedes votar en esta ronda" : "Votación cerrada — espera la siguiente ronda"}
         </p>
       </div>
 
@@ -97,7 +102,7 @@ export function VotingParticipantView() {
           animate={{ opacity: 1 }}
           className="mt-3 text-center text-sm font-bold text-green-600"
         >
-          ✓ Voto guardado
+          ✓ Voto guardado (ronda {round})
         </motion.p>
       )}
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { getAdminPin, getSessionCode } from "@/lib/role-storage";
-import type { Artist, VotingSession } from "@/lib/voting/types";
+import type { Artist, ArtistResult, VotingSession } from "@/lib/voting/types";
 import { VotingResults } from "./VotingResults";
 
 function adminHeaders() {
@@ -19,9 +19,7 @@ export function VotingAdminPanel() {
   const [session, setSession] = useState<VotingSession | null>(null);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [newName, setNewName] = useState("");
-  const [liveResults, setLiveResults] = useState<
-    { artist: Artist; totalPoints: number; average: number; voteCount: number }[]
-  >([]);
+  const [liveResults, setLiveResults] = useState<ArtistResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -33,7 +31,6 @@ export function VotingAdminPanel() {
       if (!res.ok) throw new Error(data.error);
       setSession(data.session);
       setArtists(data.artists ?? []);
-      if (data.results) setLiveResults(data.results);
 
       const resAdmin = await fetch("/api/voting/results", { headers: adminHeaders() });
       if (resAdmin.ok) {
@@ -74,13 +71,18 @@ export function VotingAdminPanel() {
     void refresh();
   };
 
-  const patchSession = async (updates: Partial<{ is_open: boolean; show_results: boolean }>) => {
+  const patchSession = async (body: Record<string, unknown>) => {
     const res = await fetch("/api/voting/session", {
       method: "PATCH",
       headers: adminHeaders(),
-      body: JSON.stringify(updates),
+      body: JSON.stringify(body),
     });
-    if (res.ok) void refresh();
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "Error");
+      return;
+    }
+    void refresh();
   };
 
   if (loading) {
@@ -95,6 +97,8 @@ export function VotingAdminPanel() {
     );
   }
 
+  const round = session?.current_round ?? 1;
+
   return (
     <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-4">
       {session && (
@@ -103,6 +107,9 @@ export function VotingAdminPanel() {
           <p className="font-display text-3xl font-black tracking-widest text-tava-purple">{session.code}</p>
           <p className="mt-1 text-sm text-gray-600">{session.title}</p>
           <div className="mt-3 flex flex-wrap gap-2">
+            <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-tava-purple">
+              Ronda {round}
+            </span>
             <span
               className={`rounded-full px-3 py-1 text-xs font-bold ${
                 session.is_open ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
@@ -116,22 +123,33 @@ export function VotingAdminPanel() {
               </span>
             )}
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => void patchSession({ is_open: !session.is_open })}
               className="rounded-xl bg-tava-purple py-3 text-sm font-bold text-white"
             >
-              {session.is_open ? "🔒 Cerrar votación" : "🔓 Abrir votación"}
+              {session.is_open ? "🔒 Cerrar ronda actual" : "🔓 Abrir votación (ronda " + round + ")"}
+            </button>
+            <button
+              type="button"
+              disabled={session.is_open}
+              onClick={() => void patchSession({ action: "new_round" })}
+              className="rounded-xl border-2 border-tava-neon-pink bg-pink-50 py-3 text-sm font-bold text-tava-neon-pink disabled:opacity-40"
+            >
+              ➕ Nueva ronda (ronda {round + 1})
             </button>
             <button
               type="button"
               onClick={() => void patchSession({ show_results: true, is_open: false })}
-              className="rounded-xl border-2 border-amber-400 bg-amber-50 py-3 text-sm font-bold text-amber-800"
+              className="rounded-xl border-2 border-amber-400 bg-amber-50 py-3 text-sm font-bold text-amber-800 sm:col-span-2"
             >
-              🏆 Publicar resultados
+              🏆 Publicar ranking acumulado
             </button>
           </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Cada ronda suma votos al total. El ranking acumula todas las rondas.
+          </p>
         </div>
       )}
 
@@ -173,7 +191,9 @@ export function VotingAdminPanel() {
 
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
 
-      <h2 className="mt-6 font-display text-lg font-bold text-gray-800">Ranking en vivo</h2>
+      <h2 className="mt-6 font-display text-lg font-bold text-gray-800">
+        Ranking acumulado (todas las rondas)
+      </h2>
       <div className="mt-2">
         <VotingResults results={liveResults} reveal />
       </div>

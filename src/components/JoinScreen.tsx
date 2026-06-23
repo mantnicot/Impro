@@ -17,8 +17,8 @@ interface JoinScreenProps {
 
 export function JoinScreen({ onJoined }: JoinScreenProps) {
   const [mode, setMode] = useState<"pick" | "admin" | "participant">("pick");
-  const [code, setCode] = useState("");
-  const [pin, setPin] = useState("");
+  const [roomCode, setRoomCode] = useState("");
+  const [masterCode, setMasterCode] = useState("");
   const [title, setTitle] = useState("Noche TAVA");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -30,7 +30,7 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
       const res = await fetch("/api/voting/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "join", code: code.trim() }),
+        body: JSON.stringify({ action: "join", code: roomCode.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al unirse");
@@ -52,12 +52,12 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
       const res = await fetch("/api/voting/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", title, pin }),
+        body: JSON.stringify({ action: "create", title, masterCode }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al crear sesión");
       setRole("admin");
-      setAdminPin(pin);
+      setAdminPin(masterCode);
       setSessionCode(data.session.code);
       setSessionId(data.session.id);
       onJoined("admin");
@@ -75,12 +75,12 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
       const res = await fetch("/api/voting/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "auth", code: code.trim(), pin }),
+        body: JSON.stringify({ action: "auth", code: roomCode.trim(), masterCode }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Código o PIN incorrecto");
+      if (!res.ok) throw new Error(data.error || "Código incorrecto");
       setRole("admin");
-      setAdminPin(pin);
+      setAdminPin(masterCode);
       setSessionCode(data.session.code);
       setSessionId(data.session.id);
       onJoined("admin");
@@ -101,9 +101,7 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
       >
         {mode === "pick" && (
           <>
-            <h1 className="text-center font-display text-2xl font-black text-gray-800">
-              TAVA Impro
-            </h1>
+            <h1 className="text-center font-display text-2xl font-black text-gray-800">TAVA Impro</h1>
             <p className="mt-1 text-center text-sm text-gray-500">¿Cómo entras hoy?</p>
             <div className="mt-6 grid gap-3">
               <button
@@ -132,15 +130,15 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
             <h2 className="mt-2 font-display text-xl font-bold text-gray-800">Unirse a votación</h2>
             <p className="text-sm text-gray-500">Ingresa el código que te dio el admin</p>
             <input
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              value={roomCode}
+              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
               placeholder="Ej: TAVA42"
               className="mt-4 w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-lg font-bold uppercase tracking-widest"
             />
             {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
             <button
               type="button"
-              disabled={loading || code.length < 4}
+              disabled={loading || roomCode.length < 4}
               onClick={() => void joinParticipant()}
               className="mt-4 w-full rounded-xl bg-tava-purple py-3 font-bold text-white disabled:opacity-50"
             >
@@ -155,39 +153,39 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
               ← Volver
             </button>
             <h2 className="mt-2 font-display text-xl font-bold text-gray-800">Panel administrador</h2>
-            <label className="mt-4 block text-xs font-medium text-gray-500">Nombre de la noche</label>
+            <label className="mt-4 block text-xs font-medium text-gray-500">Código de administrador</label>
             <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2"
-            />
-            <label className="mt-3 block text-xs font-medium text-gray-500">Código de sala (si ya existe)</label>
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="Opcional — dejar vacío para crear nueva"
-              className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 uppercase"
-            />
-            <label className="mt-3 block text-xs font-medium text-gray-500">PIN admin (4+ dígitos)</label>
-            <input
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+              value={masterCode}
+              onChange={(e) => setMasterCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
               inputMode="numeric"
               type="password"
               placeholder="••••"
               className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 text-center tracking-widest"
             />
+            <label className="mt-3 block text-xs font-medium text-gray-500">Nombre de la noche</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2"
+            />
+            <label className="mt-3 block text-xs font-medium text-gray-500">
+              Código de sala (si ya existe)
+            </label>
+            <input
+              value={roomCode}
+              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+              placeholder="Opcional — vacío para crear nueva"
+              className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 uppercase"
+            />
             {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
-            <div className="mt-4 grid gap-2">
-              <button
-                type="button"
-                disabled={loading || pin.length < 4}
-                onClick={() => void (code.trim() ? authAdmin() : createAdmin())}
-                className="w-full rounded-xl bg-tava-purple py-3 font-bold text-white disabled:opacity-50"
-              >
-                {loading ? "…" : code.trim() ? "Entrar como admin" : "Crear nueva sesión"}
-              </button>
-            </div>
+            <button
+              type="button"
+              disabled={loading || masterCode.length < 4}
+              onClick={() => void (roomCode.trim() ? authAdmin() : createAdmin())}
+              className="mt-4 w-full rounded-xl bg-tava-purple py-3 font-bold text-white disabled:opacity-50"
+            >
+              {loading ? "…" : roomCode.trim() ? "Entrar como admin" : "Crear nueva sesión"}
+            </button>
           </>
         )}
       </motion.div>

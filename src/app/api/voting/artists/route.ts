@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { verifyPin } from "@/lib/voting/pin";
+import { requireMasterAdmin } from "@/lib/voting/admin-auth";
 
-async function verifyAdmin(code: string, pin: string) {
+async function verifyAdminSession(code: string, pin: string | null) {
+  const auth = requireMasterAdmin(pin);
+  if (!auth.ok) return null;
+
   const db = getSupabaseAdmin();
   const { data: session } = await db
     .from("voting_sessions")
-    .select("id, admin_pin_hash")
+    .select("id")
     .eq("code", code.toUpperCase())
     .single();
-  if (!session || !verifyPin(pin, session.admin_pin_hash)) return null;
   return session;
 }
 
@@ -21,7 +23,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const session = await verifyAdmin(code, pin);
+    const session = await verifyAdminSession(code, pin);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const { name } = (await request.json()) as { name?: string };
@@ -61,7 +63,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 400 });
     }
 
-    const session = await verifyAdmin(code, pin);
+    const session = await verifyAdminSession(code, pin);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const db = getSupabaseAdmin();
@@ -81,7 +83,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const session = await verifyAdmin(code, pin);
+    const session = await verifyAdminSession(code, pin);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const { id, name } = (await request.json()) as { id?: string; name?: string };

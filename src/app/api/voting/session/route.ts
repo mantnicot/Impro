@@ -1,23 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { generateSessionCode, hashPin, verifyPin } from "@/lib/voting/pin";
+import { requireMasterAdmin } from "@/lib/voting/admin-auth";
+import { computeResults } from "@/lib/voting/compute-results";
+import { generateSessionCode, hashPin } from "@/lib/voting/pin";
+import { verifyMasterAdminCode } from "@/lib/voting/master-admin";
 import type { Artist, Vote, VotingSession } from "@/lib/voting/types";
-
-function computeResults(artists: Artist[], votes: Vote[]) {
-  return artists
-    .map((artist) => {
-      const artistVotes = votes.filter((v) => v.artist_id === artist.id);
-      const totalPoints = artistVotes.reduce((s, v) => s + v.value, 0);
-      const voteCount = artistVotes.length;
-      return {
-        artist,
-        totalPoints,
-        average: voteCount ? totalPoints / voteCount : 0,
-        voteCount,
-      };
-    })
-    .sort((a, b) => b.totalPoints - a.totalPoints || b.average - a.average);
-}
 
 async function loadSessionByCode(code: string) {
   const db = getSupabaseAdmin();
@@ -72,9 +59,9 @@ export async function POST(request: NextRequest) {
     const { action } = body;
 
     if (action === "create") {
-      const { title, pin } = body as { title?: string; pin?: string };
-      if (!pin || pin.length < 4) {
-        return NextResponse.json({ error: "PIN mínimo 4 dígitos" }, { status: 400 });
+      const { title, masterCode } = body as { title?: string; masterCode?: string };
+      if (!verifyMasterAdminCode(masterCode ?? "")) {
+        return NextResponse.json({ error: "Código de administrador incorrecto" }, { status: 403 });
       }
 
       const db = getSupabaseAdmin();
@@ -90,11 +77,12 @@ export async function POST(request: NextRequest) {
         .insert({
           code,
           title: title?.trim() || "Sesión TAVA",
-          admin_pin_hash: hashPin(pin),
+          admin_pin_hash: hashPin(masterCode!),
           is_open: false,
           show_results: false,
+          current_round: 1,
         })
-        .select("id, code, title, is_open, show_results, created_at")
+        .select("id, code, title, is_open, show_results, current_round, created_at")
         .single();
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -102,13 +90,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "auth") {
-      const { code, pin } = body as { code?: string; pin?: string };
-      if (!code || !pin) {
-        return NextResponse.json({ error: "code y pin requeridos" }, { status: 400 });
+      const { code, masterCode } = body as { code?: string; masterCode?: string };
+      if (!code || !masterCode) {
+        return NextResponse.json({ error: "Código de sala y admin requeridos" }, { status: 400 });
+      }
+      if (!verifyMasterAdminCode(masterCode)) {
+        return NextResponse.json({ error: "Código de administrador incorrecto" }, { status: 403 });
       }
       const session = await loadSessionByCode(code);
-      if (!session || !verifyPin(pin, session.admin_pin_hash)) {
-        return NextResponse.json({ error: "Código o PIN incorrecto" }, { status: 401 });
+      if (!session) {
+        return NextResponse.json({ error: "Sesión no encontrada" }, { status: 404 });
       }
       const { admin_pin_hash: _, ...safeSession } = session;
       return NextResponse.json({ session: safeSession, ok: true });
@@ -133,27 +124,40 @@ export async function PATCH(request: NextRequest) {
   try {
     const pin = request.headers.get("x-admin-pin");
     const code = request.headers.get("x-session-code");
-    if (!pin || !code) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+    const auth = requireMasterAdmin(pin);
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 403 });
 
-    const session = await loadSessionByCode(code);
-    if (!session || !verifyPin(pin, session.admin_pin_hash)) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+    const session = await loadSessionByCode(code ?? "");
+    if (!session) return NextResponse.json({ error: "Sesión no encontrada" }, { status: 404 });
 
     const body = await request.json();
-    const updates: Record<string, boolean | string> = {};
+    const db = getSupabaseAdmin();
+
+    if (body.action === "new_round") {
+      if (session.is_open) {
+        return NextResponse.json({ error: "Cierra la votación antes de iniciar otra ronda" }, { status: 400 });
+      }
+      const nextRound = (session.current_round ?? 1) + 1;
+      const { data, error } = await db
+        .from("voting_sessions")
+        .update({ current_round: nextRound, is_open: true, show_results: false })
+        .eq("id", session.id)
+        .select("id, code, title, is_open, show_results, current_round, created_at")
+        .single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ session: data });
+    }
+
+    const updates: Record<string, boolean | string | number> = {};
     if (typeof body.is_open === "boolean") updates.is_open = body.is_open;
     if (typeof body.show_results === "boolean") updates.show_results = body.show_results;
     if (typeof body.title === "string") updates.title = body.title.trim();
 
-    const db = getSupabaseAdmin();
     const { data, error } = await db
       .from("voting_sessions")
       .update(updates)
       .eq("id", session.id)
-      .select("id, code, title, is_open, show_results, created_at")
+      .select("id, code, title, is_open, show_results, current_round, created_at")
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -167,14 +171,11 @@ export async function DELETE(request: NextRequest) {
   try {
     const pin = request.headers.get("x-admin-pin");
     const code = request.headers.get("x-session-code");
-    if (!pin || !code) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+    const auth = requireMasterAdmin(pin);
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 403 });
 
-    const session = await loadSessionByCode(code);
-    if (!session || !verifyPin(pin, session.admin_pin_hash)) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+    const session = await loadSessionByCode(code ?? "");
+    if (!session) return NextResponse.json({ error: "Sesión no encontrada" }, { status: 404 });
 
     const db = getSupabaseAdmin();
     await db.from("voting_sessions").delete().eq("id", session.id);

@@ -4,6 +4,7 @@ export interface VotingSession {
   title: string;
   is_open: boolean;
   show_results: boolean;
+  current_round: number;
   created_at: string;
 }
 
@@ -21,6 +22,7 @@ export interface Vote {
   artist_id: string;
   voter_id: string;
   value: number;
+  round: number;
   created_at: string;
 }
 
@@ -29,4 +31,6 @@ export interface ArtistResult {
   totalPoints: number;
   average: number;
   voteCount: number;
+  roundsWithVotes?: number;
+  maxRound?: number;
 }

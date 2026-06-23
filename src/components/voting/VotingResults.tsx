@@ -38,6 +38,9 @@ export function VotingResults({ results, title, reveal }: VotingResultsProps) {
             <p className="font-display font-bold text-gray-800">{r.artist.name}</p>
             <p className="text-xs text-gray-500">
               {r.voteCount} voto{r.voteCount !== 1 ? "s" : ""} · Promedio {r.average.toFixed(1)} ★
+              {r.roundsWithVotes != null && r.roundsWithVotes > 0 && (
+                <> · {r.roundsWithVotes} ronda{r.roundsWithVotes !== 1 ? "s" : ""}</>
+              )}
             </p>
           </div>
           <div className="text-right">
