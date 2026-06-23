@@ -259,6 +259,7 @@ export const PREMISES: string[] = [
   "Peores formas de pedir la cuenta en un restaurante",
   "Peores formas de subir a un escenario",
   "Peores formas de bajar de un escenario",
+<<<<<<< HEAD
 
   // Juegos de impro en vivo
   "Impro donde solo puedes hablar en preguntas",
@@ -346,4 +347,13 @@ export function drawRandomPremise(exclude?: string, category: PremiseCategory = 
   if (pool.length === 0) return "Toca para generar una premisa";
   const filtered = exclude && pool.length > 1 ? pool.filter((p) => p !== exclude) : pool;
   return filtered[Math.floor(Math.random() * filtered.length)]!;
+=======
+];
+
+export function drawRandomPremise(exclude?: string): string {
+  if (PREMISES.length === 0) return "Toca para generar una premisa";
+  const pool =
+    exclude && PREMISES.length > 1 ? PREMISES.filter((p) => p !== exclude) : PREMISES;
+  return pool[Math.floor(Math.random() * pool.length)]!;
+>>>>>>> 9f781753cc207a01bbfdfb046187ed0957c801d8
 }
