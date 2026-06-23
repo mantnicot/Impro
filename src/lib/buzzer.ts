@@ -1,6 +1,6 @@
 import { unlockAudio } from "@/lib/sounds";
 
-const BUZZER_SRC = "/sounds/wrong-answer.mp3";
+const BUZZER_SRC = "/sounds/wrong.mp3";
 
 interface ActiveBuzzer {
   audio: HTMLAudioElement;
@@ -37,9 +37,6 @@ export function stopBuzzer(pointerId: number): void {
     void audio.play().catch(() => {
       audio.pause();
     });
-    audio.onended = () => {
-      audio.onended = null;
-    };
     return;
   }
 

@@ -346,7 +346,7 @@ export default function HomePage() {
       )}
       {panel === "settings" && <SettingsPanel onClose={() => setPanel(null)} />}
       {panel === "stats" && <StatsPanel onClose={() => setPanel(null)} />}
-      <ControlDock />
+      <ControlDock aboveNav />
     </div>
   );
 }

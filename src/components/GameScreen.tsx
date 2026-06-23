@@ -130,7 +130,7 @@ export function GameScreen({
   const waitingForImage = phase === "countdown" && countdownDone.current && !current?.word;
 
   return (
-    <div className="relative flex h-full min-h-screen flex-col bg-theater-gradient pb-[calc(7rem+env(safe-area-inset-bottom,0px))]">
+    <div className="relative flex h-full min-h-screen flex-col bg-theater-gradient">
       <AnimatePresence>
         {favoriteFlash && (
           <motion.div

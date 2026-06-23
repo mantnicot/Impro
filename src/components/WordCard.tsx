@@ -73,9 +73,9 @@ export function WordCard({ word, imageUrl, listName, onSwipe }: WordCardProps) {
           </span>
         </div>
 
-        <div className="relative mb-3 w-full min-h-[50vh] max-h-[60vh] flex-1 overflow-hidden rounded-3xl border-3 border-tava-purple/25 bg-white shadow-xl shadow-tava-purple/10">
+        <div className="relative mb-2 w-full min-h-[42vh] max-h-[48vh] flex-1 overflow-hidden rounded-3xl border-3 border-tava-purple/25 bg-white shadow-xl shadow-tava-purple/10">
           {loading ? (
-            <div className="flex h-full min-h-[50vh] items-center justify-center bg-gradient-to-br from-purple-50 to-amber-50">
+            <div className="flex h-full min-h-[42vh] items-center justify-center bg-gradient-to-br from-purple-50 to-amber-50">
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
@@ -86,7 +86,7 @@ export function WordCard({ word, imageUrl, listName, onSwipe }: WordCardProps) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={src} alt={word} draggable={false} className="h-full w-full object-contain bg-white p-1" />
           ) : (
-            <div className="flex h-full min-h-[50vh] flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-amber-50">
+            <div className="flex h-full min-h-[42vh] flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-amber-50">
               <span className="text-7xl">🎭</span>
             </div>
           )}
@@ -96,7 +96,7 @@ export function WordCard({ word, imageUrl, listName, onSwipe }: WordCardProps) {
           initial={{ y: 20, opacity: 0, scale: 0.9 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
           transition={{ duration: 0.2 }}
-          className="shrink-0 font-display text-center text-4xl font-black uppercase leading-tight text-gray-800 sm:text-6xl md:text-7xl"
+          className="relative z-20 shrink-0 px-2 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] pt-1 font-display text-center text-3xl font-black uppercase leading-tight text-gray-800 sm:text-5xl md:text-6xl"
         >
           {word}
         </motion.h2>
