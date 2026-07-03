@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { getAdminPin, getSessionCode } from "@/lib/role-storage";
-import type { Artist, ArtistResult, VotingSession } from "@/lib/voting/types";
+import type { Artist, ArtistResult, VotingSession, VotingSummary } from "@/lib/voting/types";
 import { VotingResults } from "./VotingResults";
 
 function adminHeaders() {
@@ -14,29 +14,36 @@ function adminHeaders() {
   };
 }
 
+const emptySummary: VotingSummary = {
+  totalVotes: 0,
+  currentRoundVotes: 0,
+  participantCount: 0,
+  currentRoundParticipantCount: 0,
+  objectSubmissionCount: 0,
+};
+
 export function VotingAdminPanel() {
   const code = getSessionCode();
   const [session, setSession] = useState<VotingSession | null>(null);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [newName, setNewName] = useState("");
   const [liveResults, setLiveResults] = useState<ArtistResult[]>([]);
+  const [summary, setSummary] = useState<VotingSummary>(emptySummary);
   const [loading, setLoading] = useState(true);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
     if (!code) return;
     try {
-      const res = await fetch(`/api/voting/session?code=${encodeURIComponent(code)}`);
+      const res = await fetch(`/api/voting/session?code=${encodeURIComponent(code)}&includeResults=true`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSession(data.session);
       setArtists(data.artists ?? []);
-
-      const resAdmin = await fetch("/api/voting/results", { headers: adminHeaders() });
-      if (resAdmin.ok) {
-        const adminData = await resAdmin.json();
-        setLiveResults(adminData.results ?? []);
-      }
+      setLiveResults(data.results ?? []);
+      setSummary(data.summary ?? emptySummary);
+      setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -46,7 +53,7 @@ export function VotingAdminPanel() {
 
   useEffect(() => {
     void refresh();
-    const t = setInterval(() => void refresh(), 3000);
+    const t = setInterval(() => void refresh(), 5000);
     return () => clearInterval(t);
   }, [refresh]);
 
@@ -71,19 +78,35 @@ export function VotingAdminPanel() {
     void refresh();
   };
 
-  const patchSession = async (body: Record<string, unknown>) => {
-    const res = await fetch("/api/voting/session", {
-      method: "PATCH",
-      headers: adminHeaders(),
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? "Error");
-      return;
+  const patchSession = async (body: Record<string, unknown>, label: string) => {
+    setBusyAction(label);
+    setError("");
+    try {
+      const res = await fetch("/api/voting/session", {
+        method: "PATCH",
+        headers: adminHeaders(),
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Error");
+        return;
+      }
+      void refresh();
+    } finally {
+      setBusyAction(null);
     }
-    void refresh();
   };
+
+  const selectedObjects = session?.selected_objects ?? [];
+  const round = session?.current_round ?? 1;
+  const statusCopy = useMemo(() => {
+    if (!session) return "Sin sesion";
+    if (session.show_results) return "Ranking publicado";
+    if (session.object_collection_open) return "Recibiendo objetos";
+    if (session.is_open) return "Votacion abierta";
+    return "Votacion cerrada";
+  }, [session]);
 
   if (loading) {
     return (
@@ -97,105 +120,172 @@ export function VotingAdminPanel() {
     );
   }
 
-  const round = session?.current_round ?? 1;
-
   return (
     <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-4">
       {session && (
-        <div className="mb-4 rounded-2xl border border-tava-purple/30 bg-white p-4 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Código de sala</p>
-          <p className="font-display text-3xl font-black tracking-widest text-tava-purple">{session.code}</p>
-          <p className="mt-1 text-sm text-gray-600">{session.title}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-tava-purple">
-              Ronda {round}
-            </span>
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-bold ${
-                session.is_open ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              {session.is_open ? "Votación ABIERTA" : "Votación cerrada"}
-            </span>
-            {session.show_results && (
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
-                Resultados publicados
-              </span>
-            )}
+        <section className="mb-4 rounded-2xl border border-tava-purple/30 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Codigo de sala</p>
+              <p className="font-display text-3xl font-black tracking-widest text-tava-purple">{session.code}</p>
+              <p className="mt-1 text-sm text-gray-600">{session.title}</p>
+            </div>
+            <div className="rounded-2xl bg-purple-50 px-4 py-3 text-right">
+              <p className="text-xs font-bold uppercase tracking-widest text-tava-purple">Estado</p>
+              <p className="font-display text-lg font-black text-gray-800">{statusCopy}</p>
+            </div>
           </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-3">
+              <p className="text-[10px] font-bold uppercase text-gray-400">Ronda</p>
+              <p className="font-display text-2xl font-black text-gray-800">{round}</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-3">
+              <p className="text-[10px] font-bold uppercase text-gray-400">Votos ronda</p>
+              <p className="font-display text-2xl font-black text-gray-800">{summary.currentRoundVotes}</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-3">
+              <p className="text-[10px] font-bold uppercase text-gray-400">Participantes</p>
+              <p className="font-display text-2xl font-black text-gray-800">
+                {summary.currentRoundParticipantCount}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-3">
+              <p className="text-[10px] font-bold uppercase text-gray-400">Objetos</p>
+              <p className="font-display text-2xl font-black text-gray-800">{summary.objectSubmissionCount}</p>
+            </div>
+          </div>
+
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               type="button"
-              onClick={() => void patchSession({ is_open: !session.is_open })}
-              className="rounded-xl bg-tava-purple py-3 text-sm font-bold text-white"
+              disabled={!!busyAction}
+              onClick={() =>
+                void patchSession({ is_open: !session.is_open }, session.is_open ? "close-vote" : "open-vote")
+              }
+              className="rounded-xl bg-tava-purple py-3 text-sm font-bold text-white disabled:opacity-50"
             >
-              {session.is_open ? "🔒 Cerrar ronda actual" : "🔓 Abrir votación (ronda " + round + ")"}
+              {session.is_open ? "Cerrar votacion actual" : `Abrir votacion (ronda ${round})`}
             </button>
             <button
               type="button"
-              disabled={session.is_open}
-              onClick={() => void patchSession({ action: "new_round" })}
+              disabled={session.is_open || !!busyAction}
+              onClick={() => void patchSession({ action: "new_round" }, "new-round")}
               className="rounded-xl border-2 border-tava-neon-pink bg-pink-50 py-3 text-sm font-bold text-tava-neon-pink disabled:opacity-40"
             >
-              ➕ Nueva ronda (ronda {round + 1})
+              Nueva ronda ({round + 1})
             </button>
             <button
               type="button"
-              onClick={() => void patchSession({ show_results: true, is_open: false })}
-              className="rounded-xl border-2 border-amber-400 bg-amber-50 py-3 text-sm font-bold text-amber-800 sm:col-span-2"
+              disabled={!!busyAction}
+              onClick={() => void patchSession({ show_results: true, is_open: false }, "publish")}
+              className="rounded-xl border-2 border-amber-400 bg-amber-50 py-3 text-sm font-bold text-amber-800 disabled:opacity-50 sm:col-span-2"
             >
-              🏆 Publicar ranking acumulado
+              Publicar podio y ranking acumulado
             </button>
           </div>
-          <p className="mt-2 text-xs text-gray-500">
-            Cada ronda suma votos al total. El ranking acumula todas las rondas.
-          </p>
-        </div>
+        </section>
       )}
 
-      <h2 className="font-display text-lg font-bold text-gray-800">Artistas</h2>
-      <div className="mt-2 flex gap-2">
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="Nombre del artista"
-          className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm"
-          onKeyDown={(e) => e.key === "Enter" && void addArtist()}
-        />
-        <button
-          type="button"
-          onClick={() => void addArtist()}
-          className="rounded-xl bg-tava-neon-pink px-4 py-2 text-sm font-bold text-white"
-        >
-          + Agregar
-        </button>
-      </div>
-
-      <ul className="mt-3 space-y-2">
-        {artists.map((a) => (
-          <li
-            key={a.id}
-            className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3"
+      <section className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-lg font-bold text-gray-800">Objetos de la ronda</h2>
+            <p className="text-xs text-gray-500">Los participantes proponen y el sistema sortea hasta 3.</p>
+          </div>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold ${
+              session?.object_collection_open ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+            }`}
           >
-            <span className="font-medium">{a.name}</span>
-            <button
-              type="button"
-              onClick={() => void removeArtist(a.id)}
-              className="text-sm text-red-500"
+            {session?.object_collection_open ? "Abierto" : "Cerrado"}
+          </span>
+        </div>
+
+        {selectedObjects.length > 0 && (
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {selectedObjects.map((objectName, index) => (
+              <motion.div
+                key={objectName}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.08 }}
+                className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-center font-display text-lg font-black text-amber-900"
+              >
+                {objectName}
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <button
+            type="button"
+            disabled={!!busyAction}
+            onClick={() => void patchSession({ action: "open_objects" }, "open-objects")}
+            className="rounded-xl border-2 border-green-500 bg-green-50 py-3 text-sm font-bold text-green-700 disabled:opacity-50"
+          >
+            Recibir objetos
+          </button>
+          <button
+            type="button"
+            disabled={!!busyAction}
+            onClick={() => void patchSession({ action: "close_objects" }, "close-objects")}
+            className="rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold text-gray-700 disabled:opacity-50"
+          >
+            Cerrar recepcion
+          </button>
+          <button
+            type="button"
+            disabled={!!busyAction || summary.objectSubmissionCount === 0}
+            onClick={() => void patchSession({ action: "draw_objects" }, "draw-objects")}
+            className="rounded-xl bg-amber-500 py-3 text-sm font-bold text-white disabled:opacity-40"
+          >
+            Sortear 3 objetos
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <h2 className="font-display text-lg font-bold text-gray-800">Artistas</h2>
+        <div className="mt-2 flex gap-2">
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Nombre del artista"
+            className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm"
+            onKeyDown={(e) => e.key === "Enter" && void addArtist()}
+          />
+          <button
+            type="button"
+            onClick={() => void addArtist()}
+            className="rounded-xl bg-tava-neon-pink px-4 py-2 text-sm font-bold text-white"
+          >
+            Agregar
+          </button>
+        </div>
+
+        <ul className="mt-3 space-y-2">
+          {artists.map((a) => (
+            <li
+              key={a.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
             >
-              Eliminar
-            </button>
-          </li>
-        ))}
-      </ul>
+              <span className="min-w-0 truncate font-medium">{a.name}</span>
+              <button type="button" onClick={() => void removeArtist(a.id)} className="shrink-0 text-sm text-red-500">
+                Eliminar
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-      {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
 
-      <h2 className="mt-6 font-display text-lg font-bold text-gray-800">
-        Ranking acumulado (todas las rondas)
-      </h2>
+      <h2 className="mt-6 font-display text-lg font-bold text-gray-800">Ranking acumulado</h2>
       <div className="mt-2">
-        <VotingResults results={liveResults} reveal />
+        <VotingResults results={liveResults} reveal podium={session?.show_results} />
       </div>
     </div>
   );

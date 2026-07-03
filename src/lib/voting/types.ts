@@ -5,6 +5,8 @@ export interface VotingSession {
   is_open: boolean;
   show_results: boolean;
   current_round: number;
+  object_collection_open: boolean;
+  selected_objects: string[];
   created_at: string;
 }
 
@@ -33,4 +35,21 @@ export interface ArtistResult {
   voteCount: number;
   roundsWithVotes?: number;
   maxRound?: number;
+}
+
+export interface RoundObjectSubmission {
+  id: string;
+  session_id: string;
+  voter_id: string;
+  object_name: string;
+  round: number;
+  created_at: string;
+}
+
+export interface VotingSummary {
+  totalVotes: number;
+  currentRoundVotes: number;
+  participantCount: number;
+  currentRoundParticipantCount: number;
+  objectSubmissionCount: number;
 }
