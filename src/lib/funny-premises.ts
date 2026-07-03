@@ -1,348 +1,194 @@
-/** Premisas estilo categoría para improvisación — breves, abiertas, sin respuestas incluidas. */
+/** Premisas originales tipo "escenas desde un sombrero": cortas, jugables y colombianas. */
+
+const RAPID_PREMISES = [
+  "Cosas que nunca deberias decir en una fila de Bancolombia",
+  "Frases que arruinan una novena en tres segundos",
+  "Lo peor que puede decir un domiciliario antes de entregar la comida",
+  "Excusas malas para no pagar la vaca",
+  "Cosas que no quieres oir en un TransMilenio lleno",
+  "Malos nombres para una areperia elegante",
+  "Mensajes de voz que nadie deberia mandar al grupo familiar",
+  "Peores frases para conquistar en una tienda de barrio",
+  "Cosas que no deberia anunciar el piloto antes de despegar",
+  "Titulares de noticias demasiado colombianos para ser verdad",
+  "Lo que no quieres escuchar en una consulta con EPS",
+  "Confesiones raras durante una misa de siete",
+  "Peores formas de pedir rebaja",
+  "Cosas que un taxista dice como si fueran leyes de la fisica",
+  "Razones absurdas para declarar festivo un lunes",
+  "Peores momentos para decir 'yo conozco un atajo'",
+  "Cosas que no se dicen en una reunion de conjunto",
+  "Respuestas terribles a 'vecino, bajele al volumen'",
+  "Lo peor que puede pasar en un paseo de olla",
+  "Anuncios honestos de un hotel barato",
+  "Cosas que nunca deberian vender en un semaforo",
+  "Frases que hacen que una cita se vuelva entrevista laboral",
+  "Peores slogans para una campana de alcalde",
+  "Cosas que no quieres ver flotando en el ajiaco",
+  "Excusas para llegar tarde que solo funcionan en Colombia",
+  "Lo que dice una abuela cuando descubre TikTok",
+  "Peores consejos para sobrevivir diciembre",
+  "Cosas que un perro callejero sabe de politica local",
+  "Frases prohibidas en una peluqueria de barrio",
+  "Peores formas de saludar a los papas de tu pareja",
+  "Anuncios por altavoz que causarian panico en un pueblo",
+  "Peores razones para llevar ruana en clima caliente",
+  "Cosas que un turista cree que son normales en Colombia",
+  "Lo que no deberia decir un guia en Cartagena",
+  "Peores respuestas cuando te preguntan 'ya almorzo?'",
+  "Confesiones de alguien que no sabe bailar salsa",
+  "Peores cosas para decir antes de una serenata",
+  "Cosas que no quieres escuchar de un mecanico",
+  "Malas ideas para ahorrar en una boda",
+  "Peores nombres para un grupo de WhatsApp familiar",
+  "Cosas que no deberia narrar un comentarista de futbol",
+  "Frases que convierten cualquier comida en pelea familiar",
+  "Lo peor que puede decir alguien con microfono abierto",
+  "Cosas que nunca deberian tener sabor a arequipe",
+  "Peores formas de explicar una deuda",
+  "Comentarios que incendian una reunion de vecinos",
+  "Cosas que no quieres oir justo antes de subir a escena",
+  "Peores premios de una rifa empresarial",
+  "Frases que solo dice alguien que no va a pagar",
+  "Cosas que no deberia prometer un influencer de finca raiz",
+  "Razones absurdas para cancelar un asado",
+  "Peores cosas que escribir en una pancarta de bienvenida",
+  "Lo que gritaria un vendedor ambulante en Marte",
+  "Cosas que no deberia tener una empanada sorpresa",
+  "Peores frases para terminar una llamada incomoda",
+  "Cosas que suenan romanticas pero son amenazas de tia",
+  "Excusas de un DJ que dano la fiesta",
+  "Peores formas de pedir silencio en un teatro",
+  "Cosas que una arepa diria si pudiera defenderse",
+  "Errores de protocolo en una visita presidencial a una tienda",
+];
+
+const GROUP_PREMISES = [
+  "Escena grupal: una reunion de conjunto donde todos creen ser administradores",
+  "Escena grupal: una familia intenta tomarse una foto y nadie mira al mismo lado",
+  "Escena grupal: todos son vendedores de playa compitiendo por el mismo turista",
+  "Escena grupal: una junta de emergencia para decidir quien puso pasas en la ensalada",
+  "Escena grupal: un paseo de olla se convierte en juicio oral",
+  "Escena grupal: cada persona trae una version distinta de la misma chiva",
+  "Escena grupal: una banda de pueblo ensaya sin saber que cancion toca",
+  "Escena grupal: todos quieren ser padrinos de la misma mascota",
+  "Escena grupal: una fila se organiza con reglas inventadas por cada persona",
+  "Escena grupal: una reunion familiar donde cada secreto sale por accidente",
+  "Escena grupal: todos intentan explicar una ruta distinta al mismo perdido",
+  "Escena grupal: un comite decide el nombre de una nueva arepa gourmet",
+  "Escena grupal: una tienda de barrio negocia con un extraterrestre",
+  "Escena grupal: una familia prepara una sorpresa en el apartamento equivocado",
+  "Escena grupal: todos creen que son el presentador principal del evento",
+  "Escena grupal: una emisora comunitaria entra en crisis en vivo",
+  "Escena grupal: un velorio donde nadie conocia al difunto pero todos opinan",
+  "Escena grupal: un bus intermunicipal donde cada pasajero trae una emergencia",
+  "Escena grupal: una clase de baile donde nadie acepta que no sabe bailar",
+  "Escena grupal: una asamblea escolar decide prohibir algo completamente normal",
+  "Escena grupal: una familia intenta dividir la cuenta sin calculadora",
+  "Escena grupal: todos trabajan en una EPS y ninguno sabe a que ventanilla mandar",
+  "Escena grupal: una banda de vallenato rompe justo antes del coro",
+  "Escena grupal: un reality colombiano donde el premio es no madrugar",
+  "Escena grupal: una oficina descubre que el correo era para otra empresa",
+  "Escena grupal: un equipo de futbol de barrio negocia quien trae el balon",
+  "Escena grupal: todos interpretan mal una senal de transito",
+  "Escena grupal: una familia intenta hacer mercado con presupuesto imposible",
+  "Escena grupal: los vecinos hacen una intervencion por exceso de bunuelos",
+  "Escena grupal: una tripulacion de avion tiene acento de todas las regiones",
+];
+
+const ABSURD_PREMISES = [
+  "El presidente de la junta de accion comunal declara independencia del barrio",
+  "Una estatua de plaza principal empieza a cobrar arriendo",
+  "Un aguacate exige abogado antes de entrar al guacamole",
+  "La arepa con queso demanda reconocimiento como patrimonio emocional",
+  "Un semaforo se enamora de un ciclista imprudente",
+  "Un cajero automatico da consejos de vida antes de entregar plata",
+  "El rio Magdalena presenta su hoja de vida para ser alcalde",
+  "Una empanada regresa del futuro para advertir sobre el aji",
+  "La panela organiza una huelga contra el cafe",
+  "Un bus intermunicipal entra en terapia de pareja con una curva",
+  "Un sombrero vueltiao se niega a ser souvenir",
+  "Una silla rimax cree que es trono real",
+  "El recibo de la luz pide perdon, pero no baja",
+  "Un vendedor de minutos vuelve como asesor de inteligencia artificial",
+  "El arroz con coco revela que siempre quiso ser postre",
+  "Una puerta de TransMilenio decide abrirse emocionalmente",
+  "La ciclovia dominical invade un lunes por accidente",
+  "Un tamal tiene crisis existencial por ser desayuno y almuerzo a la vez",
+  "Una nevera de tienda empieza a cobrar cover",
+  "La fila del banco desarrolla conciencia colectiva",
+  "Un gallo canta a las tres de la tarde por rebeldia artistica",
+  "Un bunuelo rueda hasta el Congreso a radicar una queja",
+  "Una mochila wayuu predice el clima mejor que el noticiero",
+  "El himno del colegio exige regalias",
+  "Un ascensor se vuelve chismoso y repite conversaciones",
+  "La bolsa de agua de la tienda quiere ser influencer fitness",
+  "Un recibo de parqueadero intenta negociar custodia compartida",
+  "La bandeja paisa entra a una dieta y todos sospechan",
+  "Un parlante de buseta solo reproduce verdades incomodas",
+  "Una vaca de paseo de olla se vuelve gerente de logistica",
+];
+
+const RESTRICTION_PREMISES = [
+  "Restriccion: solo pueden hablar como si estuvieran vendiendo algo en un semaforo",
+  "Restriccion: cada frase debe terminar con 'y por eso subio el arriendo'",
+  "Restriccion: todos esconden que no entendieron la instruccion",
+  "Restriccion: nadie puede usar la palabra 'no'",
+  "Restriccion: cada personaje cree que la escena es una entrevista de trabajo",
+  "Restriccion: cada vez que alguien se sienta, cambia de opinion",
+  "Restriccion: todo se dice como secreto de familia",
+  "Restriccion: cada frase debe sonar como consejo de tia",
+  "Restriccion: uno habla como noticiero y otro como audio de WhatsApp",
+  "Restriccion: todos estan excesivamente orgullosos de una mala idea",
+  "Restriccion: nadie puede mirar al personaje que le habla",
+  "Restriccion: cada entrada debe parecer comercial de television",
+  "Restriccion: la escena empieza normal y se vuelve reunion de vecinos",
+  "Restriccion: todos interpretan cumplidos como insultos",
+  "Restriccion: cada personaje esta convencido de que esta en otra ciudad",
+  "Restriccion: cada frase debe incluir una excusa diferente",
+  "Restriccion: solo se puede negociar, nunca aceptar",
+  "Restriccion: cada personaje tiene una urgencia absurda pero educada",
+  "Restriccion: todo se explica como tutorial mal hecho",
+  "Restriccion: uno cree que esta en telenovela y los demas en documental",
+  "Restriccion: cada silencio se llena con un refran inventado",
+  "Restriccion: cada personaje exagera una palabra distinta",
+  "Restriccion: todos hablan como si estuvieran en una llamada con mala senal",
+  "Restriccion: la escena debe terminar con una solucion peor que el problema",
+  "Restriccion: todos dicen la verdad, pero de la forma mas inconveniente",
+  "Restriccion: cada personaje defiende un objeto inutil como si fuera sagrado",
+  "Restriccion: todo se decide por votacion improvisada",
+  "Restriccion: cada frase debe empezar con 'mi amor, con todo respeto'",
+  "Restriccion: nadie puede decir nombres propios",
+  "Restriccion: cada personaje cambia de alianza cada treinta segundos",
+];
 
 export const PREMISES: string[] = [
-  // Cosas que nunca / no debería
-  "Cosas que nunca debería decir un piloto",
-  "Cosas que no debería hacer un bibliotecario",
-  "Cosas que jamás quieres oír en un ascensor",
-  "Cosas que nunca deberían tener WiFi",
-  "Cosas que no debería vender un farmacéutico",
-  "Cosas que nunca debería googlear en voz alta",
-  "Cosas que no debería hacer un guía turístico",
-  "Cosas que jamás quieres ver en tu ensalada",
-  "Cosas que nunca debería tatuarse un abuelo",
-  "Cosas que no debería decir en una entrevista",
-  "Cosas que nunca deberían ser transparentes",
-  "Cosas que no debería hacer un entrenador personal",
-  "Cosas que jamás quieres oír en una boda",
-  "Cosas que nunca debería regalar un ex",
-  "Cosas que no debería hacer un DJ en un funeral",
-  "Cosas que nunca deberían flotar en la piscina",
-  "Cosas que no debería decir un vendedor de seguros",
-  "Cosas que jamás quieres encontrar en el sofá",
-  "Cosas que nunca debería combinar con arepa",
-  "Cosas que no debería hacer un taxista dormido",
-
-  // Peores versiones de
-  "Peores versiones de un superhéroe",
-  "Peores versiones de un desayuno",
-  "Peores versiones de una cita romántica",
-  "Peores versiones de un gimnasio",
-  "Peores versiones de un hospital",
-  "Peores versiones de un vuelo en avión",
-  "Peores versiones de una app de citas",
-  "Peores versiones de un hotel cinco estrellas",
-  "Peores versiones de un concierto en vivo",
-  "Peores versiones de un colegio",
-  "Peores versiones de un reality show",
-  "Peores versiones de un manual de instrucciones",
-  "Peores versiones de un spa",
-  "Peores versiones de un partido de fútbol",
-  "Peores versiones de un paseo familiar",
-
-  // Cosas que puedes decirle a X pero no a Y
-  "Cosas que le dices a tu perro pero no al jefe",
-  "Cosas que le dices al mecánico pero no al sacerdote",
-  "Cosas que le dices a tu mamá pero no al policía",
-  "Cosas que le dices al barista pero no al dentista",
-  "Cosas que le dices a tu roomie pero no a tu suegra",
-  "Cosas que le dices al Uber pero no al notario",
-  "Cosas que le dices al peluquero pero no al juez",
-  "Cosas que le dices al vecino pero no al psicólogo",
-  "Cosas que le dices al entrenador pero no al cura",
-  "Cosas que le dices al delivery pero no al embajador",
-  "Cosas que le dices a tu pareja pero no al mecánico",
-  "Cosas que le dices al contador pero no al bartender",
-
-  // Malos consejos para
-  "Malos consejos para ahorrar dinero",
-  "Malos consejos para una primera cita",
-  "Malos consejos para cuidar un bebé",
-  "Malos consejos para hacer amigos",
-  "Malos consejos para estudiar para un examen",
-  "Malos consejos para cocinar sin experiencia",
-  "Malos consejos para impresionar en una entrevista",
-  "Malos consejos para arreglar el celular mojado",
-  "Malos consejos para sobrevivir en TransMilenio",
-  "Malos consejos para dormir bien",
-  "Malos consejos para una presentación en público",
-  "Malos consejos para cuidar plantas",
-
-  // Productos / compras
-  "Productos que jamás comprarías en línea",
-  "Productos con nombres completamente honestos",
-  "Productos que nadie pidió pero existen",
-  "Peores productos de limpieza del mercado",
-  "Productos vendidos en un infomercial a las tres AM",
-  "Productos que prometen demasiado y entregan poco",
-  "Productos que solo compraría tu tía en oferta",
-  "Productos imposibles de devolver con dignidad",
-
-  // Anuncios comerciales
-  "Anuncios comerciales desastrosos jamás aprobados",
-  "Los peores comerciales de comida rápida",
-  "Esloganes publicitarios escritos por un enemigo",
-  "Comerciales que arruinan la canción que amabas",
-  "Anuncios que te hacen odiar el producto inmediatamente",
-  "Comerciales demasiado honestos para televisión",
-
-  // Deportes absurdos
-  "Nuevos deportes absurdos olímpicos",
-  "Deportes que solo tienen sentido borracho",
-  "Deportes inventados en una reunión de zoom",
-  "Deportes que nadie termina sin ambulancia",
-  "Deportes practicados exclusivamente en apartamentos",
-  "Deportes con reglas que nadie entiende",
-  "Deportes donde perder es más divertido que ganar",
-
-  // Trabajos
-  "Trabajos que nadie quiere pero alguien tiene",
-  "Nuevas profesiones ridículas del futuro cercano",
-  "Trabajos que solo existen por culpa de internet",
-  "Trabajos para alguien con cero habilidades sociales",
-  "Trabajos que suenan bien pero son una trampa",
-  "Trabajos que un niño de cinco años podría hacer mejor",
-
-  // Citas / relaciones
-  "Frases que arruinan una cita a los cinco segundos",
-  "Peores regalos para San Valentín",
-  "Señales de que la cita va muy mal",
-  "Frases de ruptura completamente innecesarias",
-  "Cosas que no deberías decir conociendo a los papás",
-  "Peores lugares para una propuesta de matrimonio",
-
-  // Inventos
-  "Inventos completamente inútiles pero patentados",
-  "Inventos creados con demasiado tiempo libre",
-  "Inventos que resuelven un problema que no existe",
-  "Inventos que empeoran todo lo que tocan",
-  "Inventos que solo un millonario aburrido financiaría",
-
-  // Formas equivocadas de celebrar
-  "Formas equivocadas de celebrar un cumpleaños",
-  "Formas equivocadas de celebrar un ascenso laboral",
-  "Formas equivocadas de celebrar el Día de la Madre",
-  "Formas equivocadas de celebrar Año Nuevo",
-  "Formas equivocadas de celebrar un gol en el mundial",
-
-  // Secretos / confesiones
-  "Secretos que nadie debería confesar en un micrófono",
-  "Secretos que arruinarían una cena familiar",
-  "Secretos que tu mascota contaría si hablara",
-  "Secretos guardados en el historial del navegador",
-
-  // Cosas que no quieres escuchar en
-  "Cosas que no quieres escuchar en una cirugía",
-  "Cosas que no quieres escuchar en un primer date",
-  "Cosas que no quieres escuchar en un taxi nocturno",
-  "Cosas que no quieres escuchar en una videollamada laboral",
-  "Cosas que no quieres escuchar en la fila del banco",
-  "Cosas que no quieres escuchar en un ascensor lleno",
-  "Cosas que no quieres escuchar en la peluquería",
-
-  // Aplicaciones / tecnología
-  "Las peores aplicaciones posibles del app store",
-  "Nuevas aplicaciones que absolutamente nadie pidió",
-  "Funciones de inteligencia artificial innecesarias",
-  "Cosas que nunca deberían tener inteligencia artificial",
-  "Actualizaciones de software que nadie solicitó",
-  "Notificaciones push que arruinan tu día",
-
-  // Tradiciones / familia
-  "Nuevas tradiciones familiares completamente extrañas",
-  "Rituales de Navidad inventados por un interno",
-  "Tradiciones que solo tu familia entiende y sufre",
-  "Reuniones familiares que terminan en caos",
-
-  // Razones / excusas
-  "Razones absurdas para cancelar una boda",
-  "Razones absurdas para no ir al gimnasio",
-  "Razones absurdas para renunciar en el primer día",
-  "Excusas increíblemente malas para llegar tarde",
-  "Excusas para no contestar el teléfono",
-  "Excusas para llegar tarde a tu propio cumpleaños",
-  "Excusas que solo funcionan una vez en la vida",
-
-  // Combinaciones / manuales
-  "Cosas que jamás deberían combinarse en un plato",
-  "Cosas que jamás deberían mezclarse en una fiesta",
-  "Manuales escritos por alguien completamente incompetente",
-  "Manuales escritos por un pirata del Caribe",
-  "Manuales de supervivencia para situaciones inventadas",
-  "Instrucciones de armado traducidas por Google",
-
-  // Mascotas / animales
-  "Peores mascotas para un apartamento pequeño",
-  "Animales que no deberían ser mascota nunca",
-  "Cosas que tu gato juzgaría si pudiera hablar",
-  "Razones por las que el perro es el jefe real",
-
-  // Lugares / situaciones
-  "Peores lugares para tener una epifanía existencial",
-  "Lugares donde nunca deberías hacer una propuesta",
-  "Sitios turísticos decepcionantes pero caros",
-  "Lugares para esconderse de la familia en diciembre",
-
-  // Cultura popular / cotidiano
-  "Remakes de películas que nadie autorizó",
-  "Reality shows que ya pasaron la línea",
-  "Tendencias de TikTok que duraron demasiado",
-  "Colombianadas en una reunión de trabajo",
-  "Confusiones de contexto en WhatsApp familiar",
-  "Situaciones cotidianas llevadas al absurdo extremo",
-
-  // Política cotidiana / social
-  "Malas decisiones en una junta de condominio",
-  "Propuestas absurdas en una reunión de vecinos",
-  "Reglas de convivencia escritas por un dictador",
-  "Peores ideas para mejorar el tráfico de Bogotá",
-
-  // Emociones / roles invertidos
-  "Emociones que un adulto no debería admitir en público",
-  "Inversiones de roles en una consulta médica",
-  "Inversiones de roles en un restaurante elegante",
-  "Inversiones de roles en una entrevista de trabajo",
-
-  // Superhéroes / imposibles
-  "Cosas que haría un superhéroe despedido",
-  "Superpoderes completamente inútiles en la vida real",
-  "Villanos con planes ridículamente complicados",
-  "Héroes que llegan tarde a todo siempre",
-  "Situaciones imposibles en un día normal de oficina",
-  "Situaciones imposibles en un TransMilenio a las seis",
-
-  // Formas de arruinar
-  "Formas de arruinar una sorpresa de cumpleaños",
-  "Formas de arruinar un brindis en público",
-  "Formas de arruinar una foto grupal perfecta",
-  "Formas de arruinar las vacaciones familiares",
-  "Formas de arruinar un karaoke en cinco segundos",
-
-  // Más variedad estructural
-  "Peores temas para romper el hielo",
-  "Peores nombres para un restaurante nuevo",
-  "Peores lemas para una campaña política local",
-  "Peores regalos de empresa en diciembre",
-  "Peores combinaciones de toppings en pizza",
-  "Peores excusas de un vendedor insistente",
-  "Peores formas de pedir un favor grande",
-  "Peores formas de terminar una presentación",
-  "Peores formas de empezar un discurso de bodas",
-  "Peores formas de disculparse sin disculparse",
-  "Nuevos premios que nadie quiere ganar",
-  "Nuevos récords mundiales que nadie intenta",
-  "Nuevos sabores de helado que no deberían existir",
-  "Nuevos filtros de Instagram innecesarios",
-  "Nuevos tipos de reuniones que podrían ser un email",
-  "Cosas que un fantasma haría en tu apartamento",
-  "Cosas que un extraterrestre no entendería de Colombia",
-  "Cosas que un turista hace y un local detesta",
-  "Cosas que un abuelo explicaría mal sobre tecnología",
-  "Cosas que un influencer promocionaría sin probar",
-  "Peores consejos de un desconocido en internet",
-  "Peores reglas de un juego de mesa inventado",
-  "Peores nombres para una banda de rock",
-  "Peores formas de ahorrar en la domiciliación",
-  "Peores regalos para un amigo invisible",
-  "Peores formas de celebrar un empate",
-  "Peores lugares para practicar yoga",
-  "Peores momentos para sacar el celular",
-  "Peores cosas para decir en un silencio incómodo",
-  "Peores formas de cortar el pastel de bodas",
-  "Peores formas de despedir a alguien del trabajo",
-  "Peores formas de pedir prestado dinero",
-  "Peores formas de devolver algo prestado",
-  "Peores formas de presentar a tu nueva pareja",
-  "Peores formas de reaccionar a un regalo feo",
-  "Peores formas de ignorar a alguien en persona",
-  "Peores formas de hacer quedar mal a un amigo",
-  "Peores formas de pedir la cuenta en un restaurante",
-  "Peores formas de subir a un escenario",
-  "Peores formas de bajar de un escenario",
-
-  // Juegos de impro en vivo
-  "Impro donde solo puedes hablar en preguntas",
-  "Impro donde no puedes usar las manos",
-  "Impro donde todo es una emergencia",
-  "Impro donde eres el peor empleado del mes",
-  "Impro donde cada frase debe terminar con '¿verdad?'",
-  "Impro donde actúas como si fueras famoso pero nadie te conoce",
-  "Impro en cámara lenta extrema",
-  "Impro donde el piso es lava",
-  "Impro donde solo puedes susurrar o gritar (nada intermedio)",
-  "Impro donde eres un traductor muy malo",
-  "Impro estilo telenovela colombiana",
-  "Impro donde todos son expertos en algo que no saben nada",
-  "Impro donde cada personaje tiene un tic ridículo",
-  "Impro donde el objetivo es hacer reír sin decir nada gracioso",
-  "Impro de peor excusa para llegar tarde",
-  "Impro de peor regalo de cumpleaños posible",
-  "Impro de peor consejo de un abuelo sabio",
-  "Impro de peor vendedor ambulante en TransMilenio",
-  "Impro de peor profesor de baile en una boda",
-  "Impro de peor entrevista para ser presidente del barrio",
-
-  // Escenas a dos / grupo
-  "Escena a dos: uno vende humo y el otro lo compra con fe",
-  "Escena a dos: pelea por el control remoto como si fuera la Copa América",
-  "Escena a dos: uno es el GPS y el otro no obedece nunca",
-  "Escena grupal: todos creen que es una reunión pero es un cumpleaños sorpresa equivocado",
-  "Escena grupal: inventar un deporte olímpico absurdo en vivo",
-  "Escena grupal: cada uno es un animal en una entrevista de trabajo",
-
-  // Absurdo colombiano
-  "Peor versión de un domiciliario en Bogotá",
-  "Peor versión de un parcero filósofo en la tienda",
-  "Peor versión de un guía en el Eje Cafetero",
-  "Cosas que no debería decir un ciclista en ciclovía",
-  "Cosas que no debería hacer un parrillero en un ascensor",
-  "Peor excusa para no pagar la vaca",
-  "Peor forma de pedir permiso en una finca",
-  "Peor reencarnación: volver como arepa con queso",
-
-  // Restricciones rápidas
-  "30 segundos: convencer a alguien de que el aguacate es overrated",
-  "30 segundos: vender un paraguas en pleno sol",
-  "30 segundos: disculparse por algo que no hiciste",
-  "60 segundos: pelea de vecinos por ruido (sin gritar de verdad)",
-  "60 segundos: tutorial de algo que no existe",
+  ...RAPID_PREMISES,
+  ...GROUP_PREMISES,
+  ...ABSURD_PREMISES,
+  ...RESTRICTION_PREMISES,
 ];
 
 export type PremiseCategory = "all" | "rapid" | "group" | "absurd" | "restriction";
 
 export const PREMISE_CATEGORIES: { id: PremiseCategory; label: string }[] = [
   { id: "all", label: "Todas" },
-  { id: "rapid", label: "Rápido" },
+  { id: "rapid", label: "Rapido" },
   { id: "group", label: "Grupal" },
   { id: "absurd", label: "Absurdo" },
-  { id: "restriction", label: "Restricción" },
+  { id: "restriction", label: "Restriccion" },
 ];
 
 const CATEGORY_MAP: Record<PremiseCategory, string[]> = {
   all: PREMISES,
-  rapid: PREMISES.filter((p) => p.startsWith("30 segundos") || p.startsWith("60 segundos")),
-  group: PREMISES.filter((p) => p.startsWith("Escena")),
-  absurd: PREMISES.filter(
-    (p) =>
-      p.includes("Peor versión") ||
-      p.includes("Peor excusa") ||
-      p.includes("Peor forma") ||
-      p.includes("Peor reencarnación") ||
-      p.includes("colombian") ||
-      p.includes("Bogotá") ||
-      p.includes("TransMilenio") ||
-      p.includes("arepa")
-  ),
-  restriction: PREMISES.filter((p) => p.startsWith("Impro donde") || p.startsWith("Impro en") || p.startsWith("Impro estilo")),
+  rapid: RAPID_PREMISES,
+  group: GROUP_PREMISES,
+  absurd: ABSURD_PREMISES,
+  restriction: RESTRICTION_PREMISES,
 };
 
 export function drawRandomPremise(exclude?: string, category: PremiseCategory = "all"): string {
-  const pool =
-    category === "all"
-      ? PREMISES
-      : CATEGORY_MAP[category].length > 0
-        ? CATEGORY_MAP[category]
-        : PREMISES;
+  const pool = CATEGORY_MAP[category].length > 0 ? CATEGORY_MAP[category] : PREMISES;
   if (pool.length === 0) return "Toca para generar una premisa";
   const filtered = exclude && pool.length > 1 ? pool.filter((p) => p !== exclude) : pool;
   return filtered[Math.floor(Math.random() * filtered.length)]!;
