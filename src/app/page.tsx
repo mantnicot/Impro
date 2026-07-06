@@ -11,7 +11,6 @@ import { FavoritesPanel } from "@/components/FavoritesPanel";
 import { SettingsPanel, StatsPanel } from "@/components/SettingsPanel";
 import { MainModuleNav, type AppModule } from "@/components/MainModuleNav";
 import { ImproColombiaModule } from "@/components/ImproColombiaModule";
-import { AmbienceModule } from "@/components/AmbienceModule";
 import { PremisesModule } from "@/components/PremisesModule";
 import { AmbienceMiniBar } from "@/components/AmbienceMiniBar";
 import { ControlDock } from "@/components/ControlDock";
@@ -51,10 +50,6 @@ const MODULE_COPY: Record<AppModule, { title: string; subtitle: string }> = {
   scenes: {
     title: "Crear escenas",
     subtitle: "Lugares, personajes y características",
-  },
-  ambiences: {
-    title: "Ambientes musicales",
-    subtitle: "Géneros con enlaces de YouTube",
   },
   premises: {
     title: "Premisas chistosas",
@@ -302,11 +297,10 @@ export default function HomePage() {
 
         {module === "scenes" && <ImproColombiaModule />}
         {module === "premises" && <PremisesModule />}
-        {module === "ambiences" && <AmbienceModule />}
         {module === "voting" && <VotingAdminPanel />}
       </main>
 
-      <AmbienceMiniBar hidden={module === "ambiences"} />
+      <AmbienceMiniBar />
       <MainModuleNav active={module} onChange={setModule} />
 
       <QuickMenu

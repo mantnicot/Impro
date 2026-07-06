@@ -186,6 +186,27 @@ export function ListManager({ lists, onRefresh, onClose, onPlayList }: ListManag
           </>
         ) : (
           <div className="space-y-4">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs font-black uppercase tracking-wide text-amber-800">1. Nombra</p>
+                <p className="mt-1 text-xs leading-relaxed text-amber-900">
+                  Usa un nombre facil de recordar, como Cocina, Oficina o Objetos raros.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-purple-200 bg-purple-50 p-3">
+                <p className="text-xs font-black uppercase tracking-wide text-tava-purple">2. Escribe</p>
+                <p className="mt-1 text-xs leading-relaxed text-purple-900">
+                  Puedes separar palabras con comas o escribir una palabra por linea.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
+                <p className="text-xs font-black uppercase tracking-wide text-rose-700">3. Juega</p>
+                <p className="mt-1 text-xs leading-relaxed text-rose-900">
+                  Guarda la lista y luego toca play para usarla en la ruleta.
+                </p>
+              </div>
+            </div>
+
             <div>
               <label className="mb-1 block text-sm text-gray-500">Nombre</label>
               <input
@@ -206,11 +227,37 @@ export function ListManager({ lists, onRefresh, onClose, onPlayList }: ListManag
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2 text-gray-800 outline-none focus:border-tava-purple"
                 placeholder={"Mesa, Silla, Pan\nQueso\nGuitarra"}
               />
-              {previewWords.length > 0 && (
-                <p className="mt-1 text-sm text-tava-purple">
-                  {previewWords.length} palabra{previewWords.length !== 1 ? "s" : ""} detectada
-                  {previewWords.length !== 1 ? "s" : ""}: {previewWords.join(", ")}
+              <div className="mt-2 rounded-2xl border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Ejemplo rapido</p>
+                <p className="mt-1 text-sm text-gray-700">
+                  sombrero, llaves, maleta, linterna
                 </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Tambien funciona si escribes cada palabra en una linea distinta.
+                </p>
+              </div>
+              {previewWords.length > 0 && (
+                <div className="mt-2 rounded-2xl border border-tava-purple/20 bg-purple-50 p-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-tava-purple">
+                    {previewWords.length} palabra{previewWords.length !== 1 ? "s" : ""} detectada
+                    {previewWords.length !== 1 ? "s" : ""}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {previewWords.slice(0, 18).map((word) => (
+                      <span
+                        key={word}
+                        className="rounded-full bg-white px-2 py-1 text-xs font-medium text-gray-700 shadow-sm"
+                      >
+                        {word}
+                      </span>
+                    ))}
+                    {previewWords.length > 18 && (
+                      <span className="rounded-full bg-white px-2 py-1 text-xs font-medium text-gray-500 shadow-sm">
+                        +{previewWords.length - 18}
+                      </span>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
             <div className="flex gap-2">
