@@ -2,42 +2,54 @@
 
 import { useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  drawRandomPremise,
-  PREMISE_CATEGORIES,
-  type PremiseCategory,
-} from "@/lib/funny-premises";
+import { PREMISES } from "@/lib/funny-premises";
+
+function shuffledCopy(items: string[], avoidFirst?: string): string[] {
+  const pool = [...items];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j]!, pool[i]!];
+  }
+  if (avoidFirst && pool.length > 1 && pool[0] === avoidFirst) {
+    const swapIndex = pool.findIndex((item) => item !== avoidFirst);
+    if (swapIndex > 0) [pool[0], pool[swapIndex]] = [pool[swapIndex]!, pool[0]!];
+  }
+  return pool;
+}
 
 export function PremisesModule() {
-  const [category, setCategory] = useState<PremiseCategory>("all");
-  const [premise, setPremise] = useState(() => drawRandomPremise(undefined, "all"));
+  const [state, setState] = useState(() => ({
+    deck: shuffledCopy(PREMISES),
+    index: 0,
+  }));
+
+  const { deck, index } = state;
+  const premise = deck[index] ?? "Toca para generar una premisa";
 
   const nextPremise = useCallback(() => {
-    setPremise((prev) => drawRandomPremise(prev, category));
-  }, [category]);
-
-  const changeCategory = (cat: PremiseCategory) => {
-    setCategory(cat);
-    setPremise(drawRandomPremise(undefined, cat));
-  };
+    setState((current) => {
+      if (current.index < current.deck.length - 1) {
+        return { ...current, index: current.index + 1 };
+      }
+      return {
+        deck: shuffledCopy(PREMISES, current.deck[current.index]),
+        index: 0,
+      };
+    });
+  }, []);
 
   return (
     <div className="flex flex-1 flex-col items-center px-4 pb-4">
-      <div className="mb-4 flex flex-wrap justify-center gap-2">
-        {PREMISE_CATEGORIES.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => changeCategory(c.id)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-              category === c.id
-                ? "bg-tava-purple text-white"
-                : "border border-gray-200 bg-white text-gray-600"
-            }`}
-          >
-            {c.label}
-          </button>
-        ))}
+      <div className="mb-4 w-full max-w-md rounded-2xl border border-red-200 bg-white/90 p-3 text-center shadow-sm">
+        <p className="font-display text-sm font-black uppercase tracking-widest text-red-700">
+          Premisas rapidas
+        </p>
+        <p className="mt-1 text-xs text-gray-500">
+          Mazo unico sin categorias. Se baraja para evitar repeticiones seguidas.
+        </p>
+        <p className="mt-2 text-xs font-bold text-tava-purple">
+          {Math.min(index + 1, deck.length)} / {deck.length}
+        </p>
       </div>
 
       <motion.button
@@ -62,7 +74,7 @@ export function PremisesModule() {
           </AnimatePresence>
         </div>
         <p className="relative mt-4 text-center text-xs font-semibold uppercase tracking-widest text-white/80">
-          Toca para otra premisa →
+          Toca para otra premisa
         </p>
       </motion.button>
     </div>

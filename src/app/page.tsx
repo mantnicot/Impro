@@ -12,7 +12,6 @@ import { SettingsPanel, StatsPanel } from "@/components/SettingsPanel";
 import { MainModuleNav, type AppModule } from "@/components/MainModuleNav";
 import { ImproColombiaModule } from "@/components/ImproColombiaModule";
 import { PremisesModule } from "@/components/PremisesModule";
-import { AmbienceMiniBar } from "@/components/AmbienceMiniBar";
 import { ControlDock } from "@/components/ControlDock";
 import { JoinScreen } from "@/components/JoinScreen";
 import { VotingAdminPanel } from "@/components/voting/VotingAdminPanel";
@@ -191,7 +190,6 @@ export default function HomePage() {
         )}
         {panel === "settings" && <SettingsPanel onClose={() => setPanel(null)} />}
         {panel === "stats" && <StatsPanel onClose={() => setPanel(null)} />}
-        <AmbienceMiniBar />
       </>
     );
   }
@@ -300,7 +298,6 @@ export default function HomePage() {
         {module === "voting" && <VotingAdminPanel />}
       </main>
 
-      <AmbienceMiniBar />
       <MainModuleNav active={module} onChange={setModule} />
 
       <QuickMenu
