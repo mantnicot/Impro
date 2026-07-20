@@ -25,17 +25,30 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (!session?.is_open) {
-      return NextResponse.json({ error: "Votación cerrada" }, { status: 403 });
+      return NextResponse.json({ error: "Votacion cerrada" }, { status: 403 });
     }
 
     const round = session.current_round ?? 1;
 
+    const { data: existingVote } = await db
+      .from("votes")
+      .select("*")
+      .eq("session_id", sessionId)
+      .eq("artist_id", artistId)
+      .eq("voter_id", voterId)
+      .eq("round", round)
+      .maybeSingle();
+
+    if (existingVote) {
+      return NextResponse.json(
+        { error: "Ya votaste por este participante en esta ronda", vote: existingVote },
+        { status: 409 }
+      );
+    }
+
     const { data, error } = await db
       .from("votes")
-      .upsert(
-        { session_id: sessionId, artist_id: artistId, voter_id: voterId, value, round },
-        { onConflict: "session_id,voter_id,artist_id,round" }
-      )
+      .insert({ session_id: sessionId, artist_id: artistId, voter_id: voterId, value, round })
       .select("*")
       .single();
 

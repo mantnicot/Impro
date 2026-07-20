@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { getAdminPin, getSessionCode } from "@/lib/role-storage";
+import {
+  ARTIST_COLORS,
+  ARTIST_TAGLINES,
+  type AvatarGender,
+} from "@/lib/voting/artist-style";
 import type { Artist, ArtistResult, VotingSession, VotingSummary } from "@/lib/voting/types";
+import { ArtistIdentityCard } from "./ArtistIdentityCard";
 import { VotingResults } from "./VotingResults";
 
 function adminHeaders() {
@@ -27,6 +33,9 @@ export function VotingAdminPanel() {
   const [session, setSession] = useState<VotingSession | null>(null);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState(ARTIST_COLORS[0]!);
+  const [newAvatarGender, setNewAvatarGender] = useState<AvatarGender>("male");
+  const [newTagline, setNewTagline] = useState(ARTIST_TAGLINES[0]!);
   const [liveResults, setLiveResults] = useState<ArtistResult[]>([]);
   const [summary, setSummary] = useState<VotingSummary>(emptySummary);
   const [loading, setLoading] = useState(true);
@@ -53,24 +62,63 @@ export function VotingAdminPanel() {
 
   useEffect(() => {
     void refresh();
-    const t = setInterval(() => void refresh(), 5000);
+    const t = setInterval(() => void refresh(), 4000);
     return () => clearInterval(t);
   }, [refresh]);
 
   const addArtist = async () => {
     if (!newName.trim()) return;
-    const res = await fetch("/api/voting/artists", {
-      method: "POST",
-      headers: adminHeaders(),
-      body: JSON.stringify({ name: newName.trim() }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error);
-      return;
+    setBusyAction("artist");
+    try {
+      const res = await fetch("/api/voting/artists", {
+        method: "POST",
+        headers: adminHeaders(),
+        body: JSON.stringify({
+          name: newName.trim(),
+          color: newColor,
+          avatarGender: newAvatarGender,
+          tagline: newTagline,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error);
+        return;
+      }
+      const nextIndex = artists.length + 1;
+      setNewName("");
+      setNewColor(ARTIST_COLORS[nextIndex % ARTIST_COLORS.length]!);
+      setNewAvatarGender(nextIndex % 2 === 0 ? "male" : "female");
+      setNewTagline(ARTIST_TAGLINES[nextIndex % ARTIST_TAGLINES.length]!);
+      void refresh();
+    } finally {
+      setBusyAction(null);
     }
-    setNewName("");
-    void refresh();
+  };
+
+  const updateArtist = async (artist: Artist, updates: Partial<Artist>) => {
+    setBusyAction(artist.id);
+    try {
+      const res = await fetch("/api/voting/artists", {
+        method: "PATCH",
+        headers: adminHeaders(),
+        body: JSON.stringify({
+          id: artist.id,
+          name: updates.name ?? artist.name,
+          color: updates.color ?? artist.color,
+          avatarGender: updates.avatar_gender ?? artist.avatar_gender,
+          tagline: updates.tagline ?? artist.tagline,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Error");
+        return;
+      }
+      setArtists((prev) => prev.map((item) => (item.id === artist.id ? data.artist : item)));
+    } finally {
+      setBusyAction(null);
+    }
   };
 
   const removeArtist = async (id: string) => {
@@ -100,6 +148,7 @@ export function VotingAdminPanel() {
 
   const selectedObjects = session?.selected_objects ?? [];
   const round = session?.current_round ?? 1;
+  const possibleVotes = summary.currentRoundParticipantCount * Math.max(artists.length, 1);
   const statusCopy = useMemo(() => {
     if (!session) return "Sin sesion";
     if (session.show_results) return "Ranking publicado";
@@ -142,18 +191,20 @@ export function VotingAdminPanel() {
               <p className="font-display text-2xl font-black text-gray-800">{round}</p>
             </div>
             <div className="rounded-xl bg-gray-50 p-3">
-              <p className="text-[10px] font-bold uppercase text-gray-400">Votos ronda</p>
+              <p className="text-[10px] font-bold uppercase text-gray-400">Votos guardados</p>
               <p className="font-display text-2xl font-black text-gray-800">{summary.currentRoundVotes}</p>
             </div>
             <div className="rounded-xl bg-gray-50 p-3">
-              <p className="text-[10px] font-bold uppercase text-gray-400">Participantes</p>
+              <p className="text-[10px] font-bold uppercase text-gray-400">Votantes activos</p>
               <p className="font-display text-2xl font-black text-gray-800">
                 {summary.currentRoundParticipantCount}
               </p>
             </div>
             <div className="rounded-xl bg-gray-50 p-3">
-              <p className="text-[10px] font-bold uppercase text-gray-400">Objetos</p>
-              <p className="font-display text-2xl font-black text-gray-800">{summary.objectSubmissionCount}</p>
+              <p className="text-[10px] font-bold uppercase text-gray-400">Progreso</p>
+              <p className="font-display text-2xl font-black text-gray-800">
+                {possibleVotes ? Math.round((summary.currentRoundVotes / possibleVotes) * 100) : 0}%
+              </p>
             </div>
           </div>
 
@@ -248,37 +299,110 @@ export function VotingAdminPanel() {
       </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <h2 className="font-display text-lg font-bold text-gray-800">Artistas</h2>
-        <div className="mt-2 flex gap-2">
+        <h2 className="font-display text-lg font-bold text-gray-800">Jugadores / artistas</h2>
+        <div className="mt-3 grid gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3">
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Nombre del artista"
-            className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm"
+            placeholder="Nombre del jugador"
+            className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
             onKeyDown={(e) => e.key === "Enter" && void addArtist()}
           />
+          <div className="grid gap-2 sm:grid-cols-[1fr_1fr]">
+            <select
+              value={newAvatarGender}
+              onChange={(e) => setNewAvatarGender(e.target.value as AvatarGender)}
+              className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+            >
+              <option value="male">Muneco hombre</option>
+              <option value="female">Muneca mujer</option>
+            </select>
+            <select
+              value={newTagline}
+              onChange={(e) => setNewTagline(e.target.value)}
+              className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+            >
+              {ARTIST_TAGLINES.map((tagline) => (
+                <option key={tagline} value={tagline}>
+                  {tagline}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {ARTIST_COLORS.map((color) => (
+              <button
+                key={color}
+                type="button"
+                aria-label={`Color ${color}`}
+                onClick={() => setNewColor(color)}
+                className={`h-8 w-8 rounded-full border-2 ${newColor === color ? "border-gray-900" : "border-white"}`}
+                style={{ backgroundColor: color }}
+              />
+            ))}
+          </div>
           <button
             type="button"
+            disabled={!newName.trim() || !!busyAction}
             onClick={() => void addArtist()}
-            className="rounded-xl bg-tava-neon-pink px-4 py-2 text-sm font-bold text-white"
+            className="rounded-xl bg-tava-neon-pink px-4 py-3 text-sm font-bold text-white disabled:opacity-40"
           >
-            Agregar
+            Agregar jugador
           </button>
         </div>
 
-        <ul className="mt-3 space-y-2">
-          {artists.map((a) => (
-            <li
-              key={a.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
-            >
-              <span className="min-w-0 truncate font-medium">{a.name}</span>
-              <button type="button" onClick={() => void removeArtist(a.id)} className="shrink-0 text-sm text-red-500">
-                Eliminar
-              </button>
-            </li>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {artists.map((artist) => (
+            <ArtistIdentityCard key={artist.id} artist={artist}>
+              <div className="grid gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {ARTIST_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-label={`Color ${color}`}
+                      onClick={() => void updateArtist(artist, { color })}
+                      className={`h-7 w-7 rounded-full border-2 ${
+                        artist.color === color ? "border-gray-900" : "border-white"
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <select
+                    value={artist.avatar_gender || "male"}
+                    disabled={busyAction === artist.id}
+                    onChange={(e) => void updateArtist(artist, { avatar_gender: e.target.value as AvatarGender })}
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-xs"
+                  >
+                    <option value="male">Muneco hombre</option>
+                    <option value="female">Muneca mujer</option>
+                  </select>
+                  <select
+                    value={artist.tagline || ARTIST_TAGLINES[0]}
+                    disabled={busyAction === artist.id}
+                    onChange={(e) => void updateArtist(artist, { tagline: e.target.value })}
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-xs"
+                  >
+                    {ARTIST_TAGLINES.map((tagline) => (
+                      <option key={tagline} value={tagline}>
+                        {tagline}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void removeArtist(artist.id)}
+                  className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-500"
+                >
+                  Eliminar jugador
+                </button>
+              </div>
+            </ArtistIdentityCard>
           ))}
-        </ul>
+        </div>
       </section>
 
       {error && <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}

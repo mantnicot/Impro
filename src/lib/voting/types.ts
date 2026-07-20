@@ -14,6 +14,9 @@ export interface Artist {
   id: string;
   session_id: string;
   name: string;
+  color: string;
+  avatar_gender: "male" | "female";
+  tagline: string;
   sort_order: number;
   created_at: string;
 }
