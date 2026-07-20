@@ -139,7 +139,7 @@ export function VotingParticipantView() {
 
   if (session?.show_results && results) {
     return (
-      <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-8">
+      <div className="flex h-full min-h-0 touch-pan-y flex-col overflow-y-auto overscroll-contain px-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] [-webkit-overflow-scrolling:touch]">
         <VotingResults results={results} reveal podium />
         <ExitButton />
       </div>
@@ -148,7 +148,7 @@ export function VotingParticipantView() {
 
   if (session?.is_open) {
     return (
-      <div className="flex flex-1 flex-col overflow-y-auto px-3 pb-8 sm:px-5">
+      <div className="flex h-full min-h-0 touch-pan-y flex-col overflow-y-auto overscroll-contain px-3 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] [-webkit-overflow-scrolling:touch] sm:px-5">
         {savingArtistId && <SavingOverlay text="Guardando voto" />}
 
         <section className="rounded-3xl border border-green-200 bg-white p-4 text-center shadow-lg">
@@ -184,7 +184,7 @@ export function VotingParticipantView() {
 
         {selectedObjects.length > 0 && <SelectedObjects objects={selectedObjects} />}
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="mt-4 grid gap-4 pb-4 lg:grid-cols-2">
           {artists.map((artist) => {
             const savedVote = votes[artist.id];
             const pendingVote = pendingVotes[artist.id];
@@ -251,7 +251,7 @@ export function VotingParticipantView() {
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-8">
+    <div className="flex h-full min-h-0 touch-pan-y flex-col overflow-y-auto overscroll-contain px-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] [-webkit-overflow-scrolling:touch]">
       {savingObject && <SavingOverlay text="Enviando objeto" />}
 
       <section className="rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm">

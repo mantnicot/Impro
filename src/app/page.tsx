@@ -137,7 +137,7 @@ export default function HomePage() {
           <TavaLogo size="sm" logoUrl={settings.logoUrl} />
           <h1 className="mt-2 font-display text-xl font-black text-gray-800">Votación TAVA</h1>
         </header>
-        <main className="relative z-10 min-h-0 flex-1 overflow-hidden">
+        <main className="relative z-10 flex min-h-0 flex-1 overflow-hidden">
           <VotingParticipantView />
         </main>
       </div>
