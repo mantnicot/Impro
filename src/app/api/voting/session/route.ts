@@ -63,7 +63,7 @@ function uniqueObjectNames(rows: RoundObjectSubmission[]): string[] {
   return objects;
 }
 
-function drawObjects(objects: string[], count = 3): string[] {
+function drawObjects(objects: string[], count = 1): string[] {
   const pool = [...objects];
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -271,7 +271,15 @@ export async function PATCH(request: NextRequest) {
         .eq("round", session.current_round ?? 1);
       if (objectsError) return NextResponse.json({ error: objectsError.message }, { status: 500 });
 
-      const selected = drawObjects(uniqueObjectNames((objectRows ?? []) as RoundObjectSubmission[]), 3);
+      const objectNames = uniqueObjectNames((objectRows ?? []) as RoundObjectSubmission[]);
+      const currentSelection = new Set(
+        (session.selected_objects ?? []).map((name) => name.toLocaleLowerCase("es"))
+      );
+      const availableObjects =
+        objectNames.length > 1
+          ? objectNames.filter((name) => !currentSelection.has(name.toLocaleLowerCase("es")))
+          : objectNames;
+      const selected = drawObjects(availableObjects, 1);
       if (selected.length === 0) {
         return NextResponse.json({ error: "Aun no hay objetos para sortear" }, { status: 400 });
       }

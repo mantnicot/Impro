@@ -242,8 +242,8 @@ export function VotingAdminPanel() {
       <section className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="font-display text-lg font-bold text-gray-800">Objetos de la ronda</h2>
-            <p className="text-xs text-gray-500">Los participantes proponen y el sistema sortea hasta 3.</p>
+            <h2 className="font-display text-lg font-bold text-gray-800">Palabra de la ronda</h2>
+            <p className="text-xs text-gray-500">Los participantes proponen y el sistema sortea una sola palabra.</p>
           </div>
           <span
             className={`rounded-full px-3 py-1 text-xs font-bold ${
@@ -293,7 +293,7 @@ export function VotingAdminPanel() {
             onClick={() => void patchSession({ action: "draw_objects" }, "draw-objects")}
             className="rounded-xl bg-amber-500 py-3 text-sm font-bold text-white disabled:opacity-40"
           >
-            Sortear 3 objetos
+            {selectedObjects.length > 0 ? "Cambiar palabra" : "Sortear palabra"}
           </button>
         </div>
       </section>

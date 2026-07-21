@@ -23,8 +23,9 @@ export function VotingParticipantView() {
   const [myObjects, setMyObjects] = useState<string[]>([]);
   const [objectInput, setObjectInput] = useState("");
   const [saved, setSaved] = useState("");
-  const [savingArtistId, setSavingArtistId] = useState<string | null>(null);
+  const [savingVotes, setSavingVotes] = useState(false);
   const [savingObject, setSavingObject] = useState(false);
+  const [attemptedVoteSubmit, setAttemptedVoteSubmit] = useState(false);
   const [firstLoad, setFirstLoad] = useState(true);
   const [error, setError] = useState("");
 
@@ -67,32 +68,62 @@ export function VotingParticipantView() {
     () => artists.filter((artist) => votes[artist.id] != null).length,
     [artists, votes]
   );
+  const readyVoteCount = useMemo(
+    () => artists.filter((artist) => votes[artist.id] != null || pendingVotes[artist.id] != null).length,
+    [artists, pendingVotes, votes]
+  );
+  const missingArtists = useMemo(
+    () => artists.filter((artist) => votes[artist.id] == null && pendingVotes[artist.id] == null),
+    [artists, pendingVotes, votes]
+  );
   const allVotesDone = artists.length > 0 && votedCount === artists.length;
+  const allVotesReady = artists.length > 0 && missingArtists.length === 0;
   const round = session?.current_round ?? 1;
   const selectedObjects = session?.selected_objects ?? [];
 
-  const submitVote = async (artistId: string) => {
-    const value = pendingVotes[artistId];
-    if (!session?.is_open || !value || votes[artistId] != null) return;
+  const submitAllVotes = async () => {
+    if (!session?.is_open || savingVotes) return;
+    setAttemptedVoteSubmit(true);
     setSaved("");
-    setSavingArtistId(artistId);
+    setError("");
+
+    if (artists.length === 0) {
+      setError("El administrador aun no ha agregado jugadores.");
+      return;
+    }
+
+    if (missingArtists.length > 0) {
+      setError(`Te falta votar por: ${missingArtists.map((artist) => artist.name).join(", ")}`);
+      return;
+    }
+
+    const votesToSave = artists
+      .filter((artist) => votes[artist.id] == null)
+      .map((artist) => ({ artistId: artist.id, value: pendingVotes[artist.id]! }));
+
+    if (votesToSave.length === 0) {
+      setSaved("Ya habias enviado todos tus votos.");
+      setTimeout(() => setSaved(""), 2000);
+      return;
+    }
+
+    setSavingVotes(true);
     try {
       const res = await fetch("/api/voting/vote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: session.id, artistId, voterId, value }),
+        body: JSON.stringify({ sessionId: session.id, voterId, votes: votesToSave }),
       });
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 409 && data.vote) await refresh();
         setError(data.error ?? "Error");
         return;
       }
       await refresh();
-      setSaved("Voto guardado");
+      setSaved("Votos guardados. Ya no necesitas votar otra vez.");
       setTimeout(() => setSaved(""), 2000);
     } finally {
-      setSavingArtistId(null);
+      setSavingVotes(false);
     }
   };
 
@@ -149,7 +180,7 @@ export function VotingParticipantView() {
   if (session?.is_open) {
     return (
       <div className="flex h-full min-h-0 touch-pan-y flex-col overflow-y-auto overscroll-contain px-3 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] [-webkit-overflow-scrolling:touch] sm:px-5">
-        {savingArtistId && <SavingOverlay text="Guardando voto" />}
+        {savingVotes && <SavingOverlay text="Guardando votos" />}
 
         <section className="rounded-3xl border border-green-200 bg-white p-4 text-center shadow-lg">
           <p className="text-xs font-black uppercase tracking-[0.25em] text-green-600">
@@ -159,25 +190,30 @@ export function VotingParticipantView() {
             Califica a cada jugador
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Ronda {round} - Guarda cada voto para que el admin lo vea.
+            Ronda {round} - Marca una nota para todos y envia una sola vez.
           </p>
           <div className="mt-4 rounded-2xl bg-green-50 p-3">
             <div className="flex items-center justify-between text-xs font-bold text-green-800">
-              <span>Progreso</span>
+              <span>Calificaciones listas</span>
               <span>
-                {votedCount}/{artists.length} votos guardados
+                {readyVoteCount}/{artists.length}
               </span>
             </div>
             <div className="mt-2 h-3 overflow-hidden rounded-full bg-white">
               <div
                 className="h-full rounded-full bg-green-500 transition-all"
-                style={{ width: `${artists.length ? (votedCount / artists.length) * 100 : 0}%` }}
+                style={{ width: `${artists.length ? (readyVoteCount / artists.length) * 100 : 0}%` }}
               />
             </div>
           </div>
+          {attemptedVoteSubmit && missingArtists.length > 0 && (
+            <p className="mt-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-700">
+              Te falta votar por: {missingArtists.map((artist) => artist.name).join(", ")}
+            </p>
+          )}
           {allVotesDone && (
             <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-black text-amber-800">
-              Listo. Ya votaste por todos y no necesitas votar otra vez.
+              Listo. Tus votos quedaron guardados y no necesitas votar otra vez.
             </p>
           )}
         </section>
@@ -189,7 +225,6 @@ export function VotingParticipantView() {
             const savedVote = votes[artist.id];
             const pendingVote = pendingVotes[artist.id];
             const isVoted = savedVote != null;
-            const isSaving = savingArtistId === artist.id;
 
             return (
               <ArtistIdentityCard key={artist.id} artist={artist} muted={isVoted}>
@@ -201,8 +236,11 @@ export function VotingParticipantView() {
                         <button
                           key={value}
                           type="button"
-                          disabled={isVoted || isSaving}
-                          onClick={() => setPendingVotes((prev) => ({ ...prev, [artist.id]: value }))}
+                          disabled={isVoted || savingVotes}
+                          onClick={() => {
+                            setPendingVotes((prev) => ({ ...prev, [artist.id]: value }));
+                            if (attemptedVoteSubmit) setError("");
+                          }}
                           className={`rounded-xl border py-3 text-sm font-black transition ${
                             selected
                               ? "border-gray-900 bg-gray-900 text-white"
@@ -215,22 +253,9 @@ export function VotingParticipantView() {
                     })}
                   </div>
 
-                  <button
-                    type="button"
-                    disabled={isVoted || !pendingVote || isSaving}
-                    onClick={() => void submitVote(artist.id)}
-                    className={`w-full rounded-2xl py-3 text-sm font-black transition ${
-                      isVoted
-                        ? "bg-green-100 text-green-700"
-                        : "bg-tava-purple text-white disabled:opacity-40"
-                    }`}
-                  >
-                    {isVoted ? `Votado (${savedVote})` : isSaving ? "Guardando..." : "Guardar voto"}
-                  </button>
-
                   {isVoted && (
                     <p className="text-center text-xs font-bold text-green-700">
-                      Tu voto quedo guardado. Ya no puedes votar de nuevo por esta persona.
+                      Guardado con {savedVote}. Este voto ya no se puede cambiar.
                     </p>
                   )}
                 </div>
@@ -242,6 +267,28 @@ export function VotingParticipantView() {
         {artists.length === 0 && (
           <p className="mt-8 text-center text-sm text-gray-500">El administrador aun no ha agregado jugadores.</p>
         )}
+
+        <section className="sticky bottom-0 z-20 -mx-3 mt-2 border-t border-gray-200 bg-white/95 px-3 py-3 shadow-[0_-10px_24px_rgba(0,0,0,0.08)] backdrop-blur sm:-mx-5 sm:px-5">
+          <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-center text-xs font-bold text-gray-500 sm:text-left">
+              {allVotesDone
+                ? "Votacion enviada."
+                : allVotesReady
+                  ? "Todo listo para enviar."
+                  : `Faltan ${missingArtists.length} jugador${missingArtists.length === 1 ? "" : "es"}.`}
+            </p>
+            <button
+              type="button"
+              disabled={savingVotes || allVotesDone || artists.length === 0}
+              onClick={() => void submitAllVotes()}
+              className={`rounded-2xl px-6 py-3 text-sm font-black text-white transition disabled:opacity-45 ${
+                allVotesReady ? "bg-green-600" : "bg-tava-purple"
+              }`}
+            >
+              {allVotesDone ? "Ya votaste" : savingVotes ? "Guardando..." : "Votar"}
+            </button>
+          </div>
+        </section>
 
         {saved && <StatusMessage text={saved} />}
         {error && <p className="mt-4 text-center text-sm text-red-500">{error}</p>}
@@ -261,7 +308,7 @@ export function VotingParticipantView() {
         </h2>
         <p className="mt-2 text-sm text-gray-500">
           {session?.object_collection_open
-            ? "Envia objetos claros para que el sistema sortee tres."
+            ? "Envia objetos claros para que el sistema sortee una palabra."
             : "Cuando el admin abra votacion, esta pantalla cambiara automaticamente."}
         </p>
       </section>
@@ -273,7 +320,7 @@ export function VotingParticipantView() {
           <div className="grid gap-2 sm:grid-cols-3">
             <InfoCard title="Idea clara" text="Escribe un objeto concreto: maleta, radio, sombrilla." tone="amber" />
             <InfoCard title="Una por envio" text="Puedes enviar varias ideas, pero una palabra a la vez." tone="purple" />
-            <InfoCard title="Sorteo" text="El admin sortea 3 objetos y apareceran aqui para todos." tone="rose" />
+            <InfoCard title="Sorteo" text="El admin sortea una palabra y aparecera aqui para todos." tone="rose" />
           </div>
 
           <form onSubmit={submitObject} className="mt-3 flex gap-2">
@@ -324,7 +371,7 @@ function SelectedObjects({ objects }: { objects: string[] }) {
       className="mt-5 rounded-3xl border border-amber-300 bg-gradient-to-br from-amber-50 to-pink-50 p-4 shadow-sm"
     >
       <p className="text-center text-xs font-bold uppercase tracking-widest text-amber-700">
-        Objetos sorteados
+        {objects.length === 1 ? "Palabra sorteada" : "Objetos sorteados"}
       </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
         {objects.map((objectName, index) => (
