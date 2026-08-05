@@ -130,7 +130,7 @@ export function GameScreen({
   const waitingForImage = phase === "countdown" && countdownDone.current && !current?.word;
 
   return (
-    <div className="relative flex h-full min-h-screen flex-col bg-theater-gradient">
+    <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-theater-gradient">
       <AnimatePresence>
         {favoriteFlash && (
           <motion.div
@@ -163,7 +163,7 @@ export function GameScreen({
         </button>
       </header>
 
-      <main className="relative z-10 flex flex-1 flex-col items-center justify-center overflow-hidden">
+      <main className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden">
         {phase === "intro" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-6">
             <TavaLogo size="xl" logoUrl={logoUrl} animated />

@@ -131,11 +131,23 @@ export default function HomePage() {
 
   if (role === "participant") {
     return (
-      <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-theater-gradient">
+      <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-theater-gradient">
         <TheaterLights />
-        <header className="relative z-10 shrink-0 px-4 py-4 text-center">
-          <TavaLogo size="sm" logoUrl={settings.logoUrl} />
-          <h1 className="mt-2 font-display text-xl font-black text-gray-800">Votación TAVA</h1>
+        <header className="relative z-10 flex shrink-0 items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <TavaLogo size="sm" logoUrl={settings.logoUrl} />
+            <h1 className="truncate font-display text-base font-black text-gray-800 sm:text-xl">Votación TAVA</h1>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              clearSession();
+              setRoleState(null);
+            }}
+            className="shrink-0 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-500"
+          >
+            Salir
+          </button>
         </header>
         <main className="relative z-10 flex min-h-0 flex-1 overflow-hidden">
           <VotingParticipantView />
@@ -337,7 +349,7 @@ export default function HomePage() {
       )}
       {panel === "settings" && <SettingsPanel onClose={() => setPanel(null)} />}
       {panel === "stats" && <StatsPanel onClose={() => setPanel(null)} />}
-      <ControlDock aboveNav />
+      {module !== "voting" && <ControlDock aboveNav />}
     </div>
   );
 }

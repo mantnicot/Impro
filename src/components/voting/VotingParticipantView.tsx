@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { clearSession, getSessionCode, getSessionId, getVoterId } from "@/lib/role-storage";
 import type { Artist, ArtistResult, VotingSession } from "@/lib/voting/types";
 import { ArtistIdentityCard } from "./ArtistIdentityCard";
@@ -19,10 +19,11 @@ function rouletteStorageKey(sessionId: string) {
   return `tava-last-roulette-${sessionId}`;
 }
 
-function ParticipantShell({
+function ParticipantLayout({
   session,
   results,
   children,
+  footer,
   rouletteOpen,
   rouletteItems,
   rouletteWinner,
@@ -31,13 +32,17 @@ function ParticipantShell({
   session: VotingSession | null;
   results: ArtistResult[];
   children: React.ReactNode;
+  footer?: React.ReactNode;
   rouletteOpen: boolean;
   rouletteItems: string[];
   rouletteWinner: string;
   onRouletteComplete: () => void;
 }) {
+  const [messageOpen, setMessageOpen] = useState(true);
+  const hasMessage = Boolean(session?.participant_message?.trim());
+
   return (
-    <>
+    <div className="flex h-full min-h-0 w-full flex-col">
       <WordRoulette
         items={rouletteItems}
         winner={rouletteWinner}
@@ -45,23 +50,190 @@ function ParticipantShell({
         onComplete={onRouletteComplete}
       />
       <DailyGamesFab games={session?.daily_games ?? []} />
+
       {results.length > 0 && <LiveScoreboard results={results} compact />}
-      {session?.participant_message?.trim() && (
-        <motion.section
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mx-3 mt-3 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 p-4 shadow-sm"
-        >
-          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-600">
-            Mensaje del admin
-          </p>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
-            {session.participant_message}
-          </p>
-        </motion.section>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+        {hasMessage && (
+          <section className="mx-3 mt-2 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 shadow-sm sm:mx-4 sm:mt-3">
+            <button
+              type="button"
+              onClick={() => setMessageOpen((open) => !open)}
+              className="flex w-full items-center justify-between px-3 py-2.5 text-left sm:px-4"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">
+                Mensaje del admin
+              </p>
+              <span className="text-xs font-bold text-indigo-500">{messageOpen ? "Ocultar" : "Ver"}</span>
+            </button>
+            <AnimatePresence initial={false}>
+              {messageOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <p className="whitespace-pre-wrap px-3 pb-3 text-sm leading-relaxed text-gray-800 sm:px-4 sm:pb-4">
+                    {session?.participant_message}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
+        )}
+
+        <div className="px-3 pb-3 pt-2 sm:px-4 sm:pb-4">{children}</div>
+      </div>
+
+      {footer}
+    </div>
+  );
+}
+
+function VoteButtons({
+  savedVote,
+  pendingVote,
+  isVoted,
+  savingVotes,
+  onSelect,
+}: {
+  savedVote?: number;
+  pendingVote?: number;
+  isVoted: boolean;
+  savingVotes: boolean;
+  onSelect: (value: number) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-5 gap-1 sm:gap-1.5">
+        {[1, 2, 3, 4, 5].map((value) => {
+          const selected = (isVoted ? savedVote : pendingVote) === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              disabled={isVoted || savingVotes}
+              onClick={() => onSelect(value)}
+              className={`min-h-[44px] rounded-xl border text-sm font-black transition sm:py-3 ${
+                selected
+                  ? "border-gray-900 bg-gray-900 text-white"
+                  : "border-gray-200 bg-gray-50 text-gray-700 active:scale-95 disabled:opacity-50"
+              }`}
+            >
+              {value}
+            </button>
+          );
+        })}
+      </div>
+      {isVoted && (
+        <p className="text-center text-xs font-bold text-green-700">
+          Guardado con {savedVote}. Este voto ya no se puede cambiar.
+        </p>
       )}
-      {children}
-    </>
+      {!isVoted && pendingVote != null && (
+        <p className="text-center text-xs font-bold text-tava-purple">Nota seleccionada: {pendingVote}</p>
+      )}
+    </div>
+  );
+}
+
+function MobileVoteCarousel({
+  artists,
+  votes,
+  pendingVotes,
+  savingVotes,
+  activeIndex,
+  onIndexChange,
+  onSelectVote,
+}: {
+  artists: Artist[];
+  votes: Record<string, number>;
+  pendingVotes: Record<string, number>;
+  savingVotes: boolean;
+  activeIndex: number;
+  onIndexChange: (index: number) => void;
+  onSelectVote: (artistId: string, value: number) => void;
+}) {
+  const artist = artists[activeIndex];
+  if (!artist) return null;
+
+  const savedVote = votes[artist.id];
+  const pendingVote = pendingVotes[artist.id];
+  const isVoted = savedVote != null;
+
+  const goNext = () => onIndexChange(Math.min(activeIndex + 1, artists.length - 1));
+  const goPrev = () => onIndexChange(Math.max(activeIndex - 1, 0));
+
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
+    const dx = info.offset.x + info.velocity.x * 0.1;
+    if (dx < -50) goNext();
+    else if (dx > 50) goPrev();
+  };
+
+  return (
+    <div className="lg:hidden">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          disabled={activeIndex === 0}
+          onClick={goPrev}
+          className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 disabled:opacity-40"
+        >
+          ← Ant.
+        </button>
+        <div className="text-center">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Jugador</p>
+          <p className="font-display text-lg font-black text-gray-900">
+            {activeIndex + 1} / {artists.length}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={activeIndex >= artists.length - 1}
+          onClick={goNext}
+          className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 disabled:opacity-40"
+        >
+          Sig. →
+        </button>
+      </div>
+
+      <motion.div
+        key={artist.id}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.12}
+        onDragEnd={handleDragEnd}
+        className="touch-pan-y"
+      >
+        <ArtistIdentityCard artist={artist} compact muted={isVoted}>
+          <VoteButtons
+            savedVote={savedVote}
+            pendingVote={pendingVote}
+            isVoted={isVoted}
+            savingVotes={savingVotes}
+            onSelect={(value) => onSelectVote(artist.id, value)}
+          />
+        </ArtistIdentityCard>
+      </motion.div>
+
+      <div className="mt-3 flex justify-center gap-1.5">
+        {artists.map((item, index) => {
+          const done = votes[item.id] != null || pendingVotes[item.id] != null;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              aria-label={`Ir a ${item.name}`}
+              onClick={() => onIndexChange(index)}
+              className={`h-2.5 rounded-full transition ${
+                index === activeIndex ? "w-6 bg-tava-purple" : done ? "w-2.5 bg-green-400" : "w-2.5 bg-gray-300"
+              }`}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -80,6 +252,7 @@ export function VotingParticipantView() {
   const [savingVotes, setSavingVotes] = useState(false);
   const [savingObject, setSavingObject] = useState(false);
   const [attemptedVoteSubmit, setAttemptedVoteSubmit] = useState(false);
+  const [activeArtistIndex, setActiveArtistIndex] = useState(0);
   const [firstLoad, setFirstLoad] = useState(true);
   const [error, setError] = useState("");
   const [rouletteOpen, setRouletteOpen] = useState(false);
@@ -95,9 +268,7 @@ export function VotingParticipantView() {
     if (lastSeen === nextSession.roulette_spun_at) return;
 
     const candidates =
-      nextSession.roulette_candidates?.length > 0
-        ? nextSession.roulette_candidates
-        : [winner];
+      nextSession.roulette_candidates?.length > 0 ? nextSession.roulette_candidates : [winner];
     setRouletteItems(candidates);
     setRouletteWinner(winner);
     setRouletteOpen(true);
@@ -139,6 +310,10 @@ export function VotingParticipantView() {
     return () => clearInterval(t);
   }, [refresh]);
 
+  useEffect(() => {
+    setActiveArtistIndex((index) => Math.min(index, Math.max(artists.length - 1, 0)));
+  }, [artists.length]);
+
   const handleRouletteComplete = () => {
     if (session?.roulette_spun_at && sessionId) {
       localStorage.setItem(rouletteStorageKey(sessionId), session.roulette_spun_at);
@@ -162,6 +337,11 @@ export function VotingParticipantView() {
   const allVotesReady = artists.length > 0 && missingArtists.length === 0;
   const round = session?.current_round ?? 1;
   const selectedObjects = session?.selected_objects ?? [];
+
+  const selectVote = (artistId: string, value: number) => {
+    setPendingVotes((prev) => ({ ...prev, [artistId]: value }));
+    if (attemptedVoteSubmit) setError("");
+  };
 
   const submitAllVotes = async () => {
     if (!session?.is_open || savingVotes) return;
@@ -238,6 +418,30 @@ export function VotingParticipantView() {
     }
   };
 
+  const voteFooter = (
+    <section className="shrink-0 border-t border-gray-200 bg-white/95 px-3 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur sm:px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+      <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-center text-xs font-bold text-gray-500 sm:text-left">
+          {allVotesDone
+            ? "Votacion enviada."
+            : allVotesReady
+              ? "Todo listo para enviar."
+              : `Faltan ${missingArtists.length} jugador${missingArtists.length === 1 ? "" : "es"}.`}
+        </p>
+        <button
+          type="button"
+          disabled={savingVotes || allVotesDone || artists.length === 0}
+          onClick={() => void submitAllVotes()}
+          className={`min-h-[44px] rounded-2xl px-6 py-3 text-sm font-black text-white transition disabled:opacity-45 ${
+            allVotesReady ? "bg-green-600" : "bg-tava-purple"
+          }`}
+        >
+          {allVotesDone ? "Ya votaste" : savingVotes ? "Guardando..." : "Enviar votos"}
+        </button>
+      </div>
+    </section>
+  );
+
   if (firstLoad) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -252,7 +456,7 @@ export function VotingParticipantView() {
 
   if (session?.show_results && results.length > 0) {
     return (
-      <ParticipantShell
+      <ParticipantLayout
         session={session}
         results={results}
         rouletteOpen={rouletteOpen}
@@ -260,145 +464,105 @@ export function VotingParticipantView() {
         rouletteWinner={rouletteWinner}
         onRouletteComplete={handleRouletteComplete}
       >
-        <div className="flex h-full min-h-0 touch-pan-y flex-col overflow-y-auto overscroll-contain px-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] [-webkit-overflow-scrolling:touch]">
-          <VotingResults results={results} reveal podium />
-          <ExitButton />
-        </div>
-      </ParticipantShell>
+        <VotingResults results={results} reveal podium />
+        <ExitButton />
+      </ParticipantLayout>
     );
   }
 
   if (session?.is_open) {
     return (
-      <ParticipantShell
+      <ParticipantLayout
         session={session}
         results={results}
+        footer={voteFooter}
         rouletteOpen={rouletteOpen}
         rouletteItems={rouletteItems}
         rouletteWinner={rouletteWinner}
         onRouletteComplete={handleRouletteComplete}
       >
-        <div className="flex h-full min-h-0 touch-pan-y flex-col overflow-y-auto overscroll-contain px-3 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] [-webkit-overflow-scrolling:touch] sm:px-5">
-          {savingVotes && <SavingOverlay text="Guardando votos" />}
+        {savingVotes && <SavingOverlay text="Guardando votos" />}
 
-          <section className="mt-3 rounded-3xl border border-green-200 bg-white p-4 text-center shadow-lg">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-green-600">
-              Momento de votacion
-            </p>
-            <h2 className="mt-1 font-display text-2xl font-black text-gray-900">
-              Califica a cada jugador
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Ronda {round} - Marca una nota para todos y envia una sola vez.
-            </p>
-            <div className="mt-4 rounded-2xl bg-green-50 p-3">
-              <div className="flex items-center justify-between text-xs font-bold text-green-800">
-                <span>Calificaciones listas</span>
-                <span>
-                  {readyVoteCount}/{artists.length}
-                </span>
-              </div>
-              <div className="mt-2 h-3 overflow-hidden rounded-full bg-white">
-                <div
-                  className="h-full rounded-full bg-green-500 transition-all"
-                  style={{ width: `${artists.length ? (readyVoteCount / artists.length) * 100 : 0}%` }}
-                />
-              </div>
+        <section className="rounded-2xl border border-green-200 bg-white p-3 text-center shadow-sm sm:rounded-3xl sm:p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-600 sm:text-xs sm:tracking-[0.25em]">
+            Momento de votacion · Ronda {round}
+          </p>
+          <h2 className="mt-1 font-display text-xl font-black text-gray-900 sm:text-2xl">
+            Califica a cada jugador
+          </h2>
+          <div className="mt-3 rounded-2xl bg-green-50 p-2.5 sm:p-3">
+            <div className="flex items-center justify-between text-xs font-bold text-green-800">
+              <span>Listos</span>
+              <span>
+                {readyVoteCount}/{artists.length}
+              </span>
             </div>
-            {attemptedVoteSubmit && missingArtists.length > 0 && (
-              <p className="mt-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-700">
-                Te falta votar por: {missingArtists.map((artist) => artist.name).join(", ")}
-              </p>
-            )}
-            {allVotesDone && (
-              <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-black text-amber-800">
-                Listo. Tus votos quedaron guardados y no necesitas votar otra vez.
-              </p>
-            )}
-          </section>
-
-          {selectedObjects.length > 0 && <SelectedObjects objects={selectedObjects} />}
-
-          <div className="mt-4 grid gap-4 pb-28 lg:grid-cols-2">
-            {artists.map((artist) => {
-              const savedVote = votes[artist.id];
-              const pendingVote = pendingVotes[artist.id];
-              const isVoted = savedVote != null;
-
-              return (
-                <ArtistIdentityCard key={artist.id} artist={artist} muted={isVoted}>
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-5 gap-1.5">
-                      {[1, 2, 3, 4, 5].map((value) => {
-                        const selected = (isVoted ? savedVote : pendingVote) === value;
-                        return (
-                          <button
-                            key={value}
-                            type="button"
-                            disabled={isVoted || savingVotes}
-                            onClick={() => {
-                              setPendingVotes((prev) => ({ ...prev, [artist.id]: value }));
-                              if (attemptedVoteSubmit) setError("");
-                            }}
-                            className={`rounded-xl border py-3 text-sm font-black transition ${
-                              selected
-                                ? "border-gray-900 bg-gray-900 text-white"
-                                : "border-gray-200 bg-gray-50 text-gray-700 disabled:opacity-50"
-                            }`}
-                          >
-                            {value}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {isVoted && (
-                      <p className="text-center text-xs font-bold text-green-700">
-                        Guardado con {savedVote}. Este voto ya no se puede cambiar.
-                      </p>
-                    )}
-                  </div>
-                </ArtistIdentityCard>
-              );
-            })}
+            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white sm:h-3">
+              <div
+                className="h-full rounded-full bg-green-500 transition-all"
+                style={{ width: `${artists.length ? (readyVoteCount / artists.length) * 100 : 0}%` }}
+              />
+            </div>
           </div>
-
-          {artists.length === 0 && (
-            <p className="mt-8 text-center text-sm text-gray-500">El administrador aun no ha agregado jugadores.</p>
+          {attemptedVoteSubmit && missingArtists.length > 0 && (
+            <p className="mt-3 rounded-2xl bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 sm:px-4 sm:py-3 sm:text-sm">
+              Te falta votar por: {missingArtists.map((artist) => artist.name).join(", ")}
+            </p>
           )}
+          {allVotesDone && (
+            <p className="mt-3 rounded-2xl bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 sm:px-4 sm:py-3 sm:text-sm">
+              Listo. Tus votos quedaron guardados.
+            </p>
+          )}
+        </section>
 
-          <section className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-20 border-t border-gray-200 bg-white/95 px-3 py-3 shadow-[0_-10px_24px_rgba(0,0,0,0.08)] backdrop-blur sm:px-5">
-            <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-center text-xs font-bold text-gray-500 sm:text-left">
-                {allVotesDone
-                  ? "Votacion enviada."
-                  : allVotesReady
-                    ? "Todo listo para enviar."
-                    : `Faltan ${missingArtists.length} jugador${missingArtists.length === 1 ? "" : "es"}.`}
-              </p>
-              <button
-                type="button"
-                disabled={savingVotes || allVotesDone || artists.length === 0}
-                onClick={() => void submitAllVotes()}
-                className={`rounded-2xl px-6 py-3 text-sm font-black text-white transition disabled:opacity-45 ${
-                  allVotesReady ? "bg-green-600" : "bg-tava-purple"
-                }`}
-              >
-                {allVotesDone ? "Ya votaste" : savingVotes ? "Guardando..." : "Votar"}
-              </button>
+        {selectedObjects.length > 0 && <SelectedObjects objects={selectedObjects} />}
+
+        {artists.length === 0 ? (
+          <p className="mt-6 text-center text-sm text-gray-500">El administrador aun no ha agregado jugadores.</p>
+        ) : (
+          <>
+            <MobileVoteCarousel
+              artists={artists}
+              votes={votes}
+              pendingVotes={pendingVotes}
+              savingVotes={savingVotes}
+              activeIndex={activeArtistIndex}
+              onIndexChange={setActiveArtistIndex}
+              onSelectVote={selectVote}
+            />
+
+            <div className="mt-4 hidden gap-4 lg:grid lg:grid-cols-2">
+              {artists.map((artist) => {
+                const savedVote = votes[artist.id];
+                const pendingVote = pendingVotes[artist.id];
+                const isVoted = savedVote != null;
+
+                return (
+                  <ArtistIdentityCard key={artist.id} artist={artist} muted={isVoted}>
+                    <VoteButtons
+                      savedVote={savedVote}
+                      pendingVote={pendingVote}
+                      isVoted={isVoted}
+                      savingVotes={savingVotes}
+                      onSelect={(value) => selectVote(artist.id, value)}
+                    />
+                  </ArtistIdentityCard>
+                );
+              })}
             </div>
-          </section>
+          </>
+        )}
 
-          {saved && <StatusMessage text={saved} />}
-          {error && <p className="mt-4 text-center text-sm text-red-500">{error}</p>}
-          <ExitButton />
-        </div>
-      </ParticipantShell>
+        {saved && <StatusMessage text={saved} />}
+        {error && <p className="mt-4 text-center text-sm text-red-500">{error}</p>}
+        <ExitButton />
+      </ParticipantLayout>
     );
   }
 
   return (
-    <ParticipantShell
+    <ParticipantLayout
       session={session}
       results={results}
       rouletteOpen={rouletteOpen}
@@ -406,69 +570,63 @@ export function VotingParticipantView() {
       rouletteWinner={rouletteWinner}
       onRouletteComplete={handleRouletteComplete}
     >
-      <div className="flex h-full min-h-0 touch-pan-y flex-col overflow-y-auto overscroll-contain px-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] [-webkit-overflow-scrolling:touch]">
-        {savingObject && <SavingOverlay text="Enviando objeto" />}
+      {savingObject && <SavingOverlay text="Enviando objeto" />}
 
-        <section className="mt-3 rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-400">Sala {code}</p>
-          <h2 className="mt-1 font-display text-2xl font-black text-gray-900">
-            {session?.object_collection_open ? "Momento de proponer objetos" : "Esperando al admin"}
-          </h2>
-          <p className="mt-2 text-sm text-gray-500">
-            {session?.object_collection_open
-              ? "Envia objetos claros para que el sistema sortee una palabra."
-              : "Cuando el admin abra votacion, esta pantalla cambiara automaticamente."}
-          </p>
-        </section>
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 text-center shadow-sm sm:rounded-3xl sm:p-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 sm:text-xs sm:tracking-[0.25em]">
+          Sala {code}
+        </p>
+        <h2 className="mt-1 font-display text-xl font-black text-gray-900 sm:text-2xl">
+          {session?.object_collection_open ? "Proponer objetos" : "Esperando al admin"}
+        </h2>
+        <p className="mt-2 text-sm text-gray-500">
+          {session?.object_collection_open
+            ? "Envia objetos claros para que el sistema sortee una palabra."
+            : "Cuando el admin abra votacion, esta pantalla cambiara sola."}
+        </p>
+      </section>
 
-        {selectedObjects.length > 0 && <SelectedObjects objects={selectedObjects} />}
+      {selectedObjects.length > 0 && <SelectedObjects objects={selectedObjects} />}
 
-        {session?.object_collection_open && (
-          <section className="mt-5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="grid gap-2 sm:grid-cols-3">
-              <InfoCard title="Idea clara" text="Escribe un objeto concreto: maleta, radio, sombrilla." tone="amber" />
-              <InfoCard title="Una por envio" text="Puedes enviar varias ideas, pero una palabra a la vez." tone="purple" />
-              <InfoCard title="Sorteo" text="El admin sortea una palabra y aparecera aqui para todos." tone="rose" />
+      {session?.object_collection_open && (
+        <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:mt-5 sm:p-4">
+          <form onSubmit={submitObject} className="flex flex-col gap-2 sm:flex-row">
+            <input
+              value={objectInput}
+              onChange={(e) => setObjectInput(e.target.value)}
+              disabled={savingObject}
+              maxLength={48}
+              placeholder="Ej: paraguas, radio, maleta..."
+              className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm disabled:bg-gray-50"
+            />
+            <button
+              type="submit"
+              disabled={!objectInput.trim() || savingObject}
+              className="min-h-[44px] rounded-xl bg-tava-purple px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
+            >
+              Enviar
+            </button>
+          </form>
+
+          {myObjects.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {myObjects.map((objectName) => (
+                <span
+                  key={objectName}
+                  className="rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-tava-purple"
+                >
+                  {objectName}
+                </span>
+              ))}
             </div>
+          )}
+        </section>
+      )}
 
-            <form onSubmit={submitObject} className="mt-3 flex gap-2">
-              <input
-                value={objectInput}
-                onChange={(e) => setObjectInput(e.target.value)}
-                disabled={savingObject}
-                maxLength={48}
-                placeholder="Ej: paraguas, radio, maleta..."
-                className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm disabled:bg-gray-50"
-              />
-              <button
-                type="submit"
-                disabled={!objectInput.trim() || savingObject}
-                className="rounded-xl bg-tava-purple px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
-              >
-                Enviar
-              </button>
-            </form>
-
-            {myObjects.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {myObjects.map((objectName) => (
-                  <span
-                    key={objectName}
-                    className="rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-tava-purple"
-                  >
-                    {objectName}
-                  </span>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
-
-        {saved && <StatusMessage text={saved} />}
-        {error && <p className="mt-4 text-center text-sm text-red-500">{error}</p>}
-        <ExitButton />
-      </div>
-    </ParticipantShell>
+      {saved && <StatusMessage text={saved} />}
+      {error && <p className="mt-4 text-center text-sm text-red-500">{error}</p>}
+      <ExitButton />
+    </ParticipantLayout>
   );
 }
 
@@ -477,19 +635,19 @@ function SelectedObjects({ objects }: { objects: string[] }) {
     <motion.section
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mt-5 rounded-3xl border border-amber-300 bg-gradient-to-br from-amber-50 to-pink-50 p-4 shadow-sm"
+      className="mt-4 rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 to-pink-50 p-3 shadow-sm sm:mt-5 sm:rounded-3xl sm:p-4"
     >
-      <p className="text-center text-xs font-bold uppercase tracking-widest text-amber-700">
+      <p className="text-center text-[10px] font-bold uppercase tracking-widest text-amber-700 sm:text-xs">
         {objects.length === 1 ? "Palabra sorteada" : "Objetos sorteados"}
       </p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+      <div className="mt-2 grid gap-2 sm:mt-3">
         {objects.map((objectName, index) => (
           <motion.div
             key={objectName}
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: index * 0.12 }}
-            className="rounded-2xl bg-white px-4 py-3 text-center font-display text-xl font-black text-tava-purple shadow-sm"
+            className="rounded-2xl bg-white px-4 py-3 text-center font-display text-lg font-black text-tava-purple shadow-sm sm:text-xl"
           >
             {objectName}
           </motion.div>
@@ -509,7 +667,6 @@ function SavingOverlay({ text }: { text: string }) {
           className="mx-auto h-12 w-12 rounded-full border-4 border-amber-200 border-t-rose-300"
         />
         <p className="mt-4 font-display text-lg font-black text-gray-800">{text}</p>
-        <p className="mt-1 text-xs text-gray-500">Sincronizando con el panel del admin...</p>
       </div>
     </div>
   );
@@ -527,20 +684,6 @@ function StatusMessage({ text }: { text: string }) {
   );
 }
 
-function InfoCard({ title, text, tone }: { title: string; text: string; tone: "amber" | "purple" | "rose" }) {
-  const styles = {
-    amber: "border-amber-200 bg-amber-50 text-amber-900",
-    purple: "border-purple-200 bg-purple-50 text-purple-900",
-    rose: "border-rose-200 bg-rose-50 text-rose-900",
-  };
-  return (
-    <div className={`rounded-2xl border p-3 ${styles[tone]}`}>
-      <p className="text-xs font-black uppercase tracking-wide">{title}</p>
-      <p className="mt-1 text-xs">{text}</p>
-    </div>
-  );
-}
-
 function ExitButton() {
   return (
     <button
@@ -549,7 +692,7 @@ function ExitButton() {
         clearSession();
         window.location.reload();
       }}
-      className="mt-8 text-center text-xs text-gray-400 underline"
+      className="mt-6 block w-full text-center text-xs text-gray-400 underline"
     >
       Salir de la sesion
     </button>

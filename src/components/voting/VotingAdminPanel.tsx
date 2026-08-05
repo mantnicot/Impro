@@ -258,7 +258,7 @@ export function VotingAdminPanel() {
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-4">
+    <div className="flex flex-1 flex-col overflow-y-auto px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:px-4">
       {liveResults.length > 0 && <LiveScoreboard results={liveResults} />}
 
       <WordRoulette
@@ -269,98 +269,11 @@ export function VotingAdminPanel() {
       />
 
       {session && (
-        <section className="mb-4 mt-4 rounded-2xl border border-indigo-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-display text-lg font-bold text-gray-800">Panel de configuracion</h2>
-              <p className="text-xs text-gray-500">
-                Mensaje de bienvenida y juegos del dia para los participantes.
-              </p>
-            </div>
-            {configSaved && <span className="text-xs font-bold text-green-600">{configSaved}</span>}
-          </div>
-
-          <label className="mt-4 block text-xs font-bold uppercase tracking-wide text-gray-500">
-            Mensaje para participantes
-          </label>
-          <textarea
-            value={participantMessage}
-            onChange={(e) => {
-              configTouchedRef.current = true;
-              setParticipantMessage(e.target.value);
-            }}
-            rows={8}
-            placeholder="Mensaje que veran los participantes al entrar"
-            className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-          />
-
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Juegos del dia</p>
-            <button
-              type="button"
-              onClick={addDailyGame}
-              className="rounded-lg bg-purple-50 px-3 py-1 text-xs font-bold text-tava-purple"
-            >
-              + Agregar juego
-            </button>
-          </div>
-
-          <div className="mt-2 space-y-3">
-            {dailyGames.length === 0 && (
-              <p className="rounded-xl bg-gray-50 px-3 py-4 text-center text-xs text-gray-500">
-                Agrega los juegos que se jugaran hoy. Los participantes los veran con un boton flotante.
-              </p>
-            )}
-            {dailyGames.map((game, index) => (
-              <div key={game.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-black uppercase text-gray-400">Juego {index + 1}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeDailyGame(game.id)}
-                    className="text-xs font-bold text-red-500"
-                  >
-                    Quitar
-                  </button>
-                </div>
-                <input
-                  value={game.name}
-                  onChange={(e) => updateDailyGame(game.id, { name: e.target.value })}
-                  placeholder="Nombre del juego"
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                />
-                <textarea
-                  value={game.description}
-                  onChange={(e) => updateDailyGame(game.id, { description: e.target.value })}
-                  rows={2}
-                  placeholder="Descripcion: reglas, duracion, dinamica..."
-                  className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                />
-              </div>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            disabled={!!busyAction}
-            onClick={() => void saveSessionConfig()}
-            className="mt-4 w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white disabled:opacity-50"
-          >
-            {busyAction === "save-config" ? "Guardando..." : "Guardar configuracion"}
-          </button>
-
-          {error && (
-            <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>
-          )}
-        </section>
-      )}
-
-      {session && (
-        <section className="mb-4 rounded-2xl border border-tava-purple/30 bg-white p-4 shadow-sm">
+        <section className="mb-4 mt-3 rounded-2xl border border-tava-purple/30 bg-white p-3 shadow-sm sm:p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Codigo de sala</p>
-              <p className="font-display text-3xl font-black tracking-widest text-tava-purple">{session.code}</p>
+              <p className="font-display text-2xl font-black tracking-widest text-tava-purple sm:text-3xl">{session.code}</p>
               <p className="mt-1 text-sm text-gray-600">{session.title}</p>
             </div>
             <div className="rounded-2xl bg-purple-50 px-4 py-3 text-right">
@@ -590,6 +503,79 @@ export function VotingAdminPanel() {
       </section>
 
       {error && <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
+
+      <section className="mt-6 rounded-2xl border border-indigo-200 bg-white p-3 shadow-sm sm:p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display text-lg font-bold text-gray-800">Configuracion de sala</h2>
+            <p className="text-xs text-gray-500">Mensaje y juegos del dia para participantes.</p>
+          </div>
+          {configSaved && <span className="text-xs font-bold text-green-600">{configSaved}</span>}
+        </div>
+
+        <label className="mt-4 block text-xs font-bold uppercase tracking-wide text-gray-500">
+          Mensaje para participantes
+        </label>
+        <textarea
+          value={participantMessage}
+          onChange={(e) => {
+            configTouchedRef.current = true;
+            setParticipantMessage(e.target.value);
+          }}
+          rows={6}
+          className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+        />
+
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Juegos del dia</p>
+          <button
+            type="button"
+            onClick={addDailyGame}
+            className="rounded-lg bg-purple-50 px-3 py-1 text-xs font-bold text-tava-purple"
+          >
+            + Agregar juego
+          </button>
+        </div>
+
+        <div className="mt-2 space-y-3">
+          {dailyGames.map((game, index) => (
+            <div key={game.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-gray-400">Juego {index + 1}</span>
+                <button
+                  type="button"
+                  onClick={() => removeDailyGame(game.id)}
+                  className="text-xs font-bold text-red-500"
+                >
+                  Quitar
+                </button>
+              </div>
+              <input
+                value={game.name}
+                onChange={(e) => updateDailyGame(game.id, { name: e.target.value })}
+                placeholder="Nombre del juego"
+                className="min-h-[44px] w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+              />
+              <textarea
+                value={game.description}
+                onChange={(e) => updateDailyGame(game.id, { description: e.target.value })}
+                rows={2}
+                placeholder="Descripcion"
+                className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+              />
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          disabled={!!busyAction}
+          onClick={() => void saveSessionConfig()}
+          className="mt-4 w-full min-h-[44px] rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white disabled:opacity-50"
+        >
+          {busyAction === "save-config" ? "Guardando..." : "Guardar configuracion"}
+        </button>
+      </section>
 
       <h2 className="mt-6 font-display text-lg font-bold text-gray-800">Ranking acumulado</h2>
       <div className="mt-2">

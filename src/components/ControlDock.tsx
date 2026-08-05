@@ -75,7 +75,7 @@ interface ControlDockProps {
 
 export function ControlDock({ showGameNav, aboveNav, onPrev, onNext, onFavorite }: ControlDockProps) {
   const bottom = aboveNav
-    ? "bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))]"
+    ? "bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))]"
     : "bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))]";
 
   if (showGameNav) {
