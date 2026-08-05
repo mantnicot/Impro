@@ -4,6 +4,10 @@ import { requireMasterAdmin } from "@/lib/voting/admin-auth";
 import { computeResults } from "@/lib/voting/compute-results";
 import { generateSessionCode, hashPin } from "@/lib/voting/pin";
 import { verifyMasterAdminCode } from "@/lib/voting/master-admin";
+import {
+  DEFAULT_PARTICIPANT_MESSAGE,
+  resolveParticipantMessage,
+} from "@/lib/voting/default-participant-message";
 import type {
   Artist,
   DailyGame,
@@ -49,11 +53,15 @@ function normalizeSession(session: StoredSession): Omit<StoredSession, "admin_pi
   const { admin_pin_hash: _, ...safeSession } = session;
   return {
     ...safeSession,
-    participant_message: safeSession.participant_message ?? "",
+    participant_message: resolveParticipantMessage(safeSession.participant_message),
     daily_games: parseDailyGames(safeSession.daily_games),
     roulette_candidates: safeSession.roulette_candidates ?? [],
     roulette_spun_at: safeSession.roulette_spun_at ?? null,
   };
+}
+
+function isMissingColumnError(message: string) {
+  return /column .* does not exist|Could not find the .* column/i.test(message);
 }
 
 async function loadSessionByCode(code: string) {
@@ -192,8 +200,10 @@ export async function POST(request: NextRequest) {
           current_round: 1,
           object_collection_open: false,
           selected_objects: [],
+          participant_message: DEFAULT_PARTICIPANT_MESSAGE,
+          daily_games: [],
         })
-        .select(sessionSelect())
+        .select("*")
         .single();
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -351,14 +361,29 @@ export async function PATCH(request: NextRequest) {
       updates.daily_games = parseDailyGames(body.daily_games);
     }
 
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 });
+    }
+
     const { data, error } = await db
       .from("voting_sessions")
       .update(updates)
       .eq("id", session.id)
-      .select(sessionSelect())
+      .select("*")
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      if (isMissingColumnError(error.message)) {
+        return NextResponse.json(
+          {
+            error:
+              "Falta la migracion en Supabase. Ejecuta el archivo supabase/migration-admin-panel.sql en el SQL Editor.",
+          },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     return NextResponse.json({ session: normalizeSession(data as unknown as StoredSession) });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

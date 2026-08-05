@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { getAdminPin, getSessionCode } from "@/lib/role-storage";
+import { DEFAULT_PARTICIPANT_MESSAGE } from "@/lib/voting/default-participant-message";
 import {
   ARTIST_COLORS,
   ARTIST_TAGLINES,
@@ -43,12 +44,19 @@ export function VotingAdminPanel() {
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [participantMessage, setParticipantMessage] = useState("");
+  const [participantMessage, setParticipantMessage] = useState(DEFAULT_PARTICIPANT_MESSAGE);
   const [dailyGames, setDailyGames] = useState<DailyGame[]>([]);
   const [configSaved, setConfigSaved] = useState("");
   const [rouletteOpen, setRouletteOpen] = useState(false);
   const [rouletteItems, setRouletteItems] = useState<string[]>([]);
   const [rouletteWinner, setRouletteWinner] = useState("");
+  const configTouchedRef = useRef(false);
+
+  const applySessionConfig = useCallback((nextSession: VotingSession | null | undefined) => {
+    if (configTouchedRef.current || !nextSession) return;
+    setParticipantMessage(nextSession.participant_message || DEFAULT_PARTICIPANT_MESSAGE);
+    setDailyGames(nextSession.daily_games ?? []);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!code) return;
@@ -60,15 +68,14 @@ export function VotingAdminPanel() {
       setArtists(data.artists ?? []);
       setLiveResults(data.results ?? []);
       setSummary(data.summary ?? emptySummary);
-      setParticipantMessage(data.session?.participant_message ?? "");
-      setDailyGames(data.session?.daily_games ?? []);
+      applySessionConfig(data.session);
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
     }
-  }, [code]);
+  }, [code, applySessionConfig]);
 
   useEffect(() => {
     void refresh();
@@ -159,6 +166,14 @@ export function VotingAdminPanel() {
 
   const saveSessionConfig = async () => {
     setConfigSaved("");
+    setError("");
+
+    const incompleteGames = dailyGames.filter((game) => !game.name.trim());
+    if (incompleteGames.length > 0) {
+      setError("Cada juego necesita un nombre antes de guardar.");
+      return;
+    }
+
     const data = await patchSession(
       {
         participant_message: participantMessage,
@@ -166,13 +181,18 @@ export function VotingAdminPanel() {
       },
       "save-config"
     );
-    if (data && !data.error) {
+
+    if (data?.session) {
+      configTouchedRef.current = false;
+      setParticipantMessage(data.session.participant_message || DEFAULT_PARTICIPANT_MESSAGE);
+      setDailyGames(data.session.daily_games ?? []);
       setConfigSaved("Configuracion guardada");
       setTimeout(() => setConfigSaved(""), 2000);
     }
   };
 
   const addDailyGame = () => {
+    configTouchedRef.current = true;
     setDailyGames((prev) => [
       ...prev,
       { id: crypto.randomUUID(), name: "", description: "" },
@@ -180,10 +200,12 @@ export function VotingAdminPanel() {
   };
 
   const updateDailyGame = (id: string, updates: Partial<DailyGame>) => {
+    configTouchedRef.current = true;
     setDailyGames((prev) => prev.map((game) => (game.id === id ? { ...game, ...updates } : game)));
   };
 
   const removeDailyGame = (id: string) => {
+    configTouchedRef.current = true;
     setDailyGames((prev) => prev.filter((game) => game.id !== id));
   };
 
@@ -263,9 +285,12 @@ export function VotingAdminPanel() {
           </label>
           <textarea
             value={participantMessage}
-            onChange={(e) => setParticipantMessage(e.target.value)}
-            rows={3}
-            placeholder="Ej: Bienvenidos a la noche de impro TAVA. Lean los juegos del dia y preparen sus mejores ideas."
+            onChange={(e) => {
+              configTouchedRef.current = true;
+              setParticipantMessage(e.target.value);
+            }}
+            rows={8}
+            placeholder="Mensaje que veran los participantes al entrar"
             className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
           />
 
@@ -321,8 +346,12 @@ export function VotingAdminPanel() {
             onClick={() => void saveSessionConfig()}
             className="mt-4 w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white disabled:opacity-50"
           >
-            Guardar configuracion
+            {busyAction === "save-config" ? "Guardando..." : "Guardar configuracion"}
           </button>
+
+          {error && (
+            <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>
+          )}
         </section>
       )}
 
