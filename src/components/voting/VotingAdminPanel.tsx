@@ -8,9 +8,11 @@ import {
   ARTIST_TAGLINES,
   type AvatarGender,
 } from "@/lib/voting/artist-style";
-import type { Artist, ArtistResult, VotingSession, VotingSummary } from "@/lib/voting/types";
+import type { Artist, ArtistResult, DailyGame, VotingSession, VotingSummary } from "@/lib/voting/types";
 import { ArtistIdentityCard } from "./ArtistIdentityCard";
+import { LiveScoreboard } from "./LiveScoreboard";
 import { VotingResults } from "./VotingResults";
+import { WordRoulette } from "./WordRoulette";
 
 function adminHeaders() {
   return {
@@ -41,6 +43,12 @@ export function VotingAdminPanel() {
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [participantMessage, setParticipantMessage] = useState("");
+  const [dailyGames, setDailyGames] = useState<DailyGame[]>([]);
+  const [configSaved, setConfigSaved] = useState("");
+  const [rouletteOpen, setRouletteOpen] = useState(false);
+  const [rouletteItems, setRouletteItems] = useState<string[]>([]);
+  const [rouletteWinner, setRouletteWinner] = useState("");
 
   const refresh = useCallback(async () => {
     if (!code) return;
@@ -52,6 +60,8 @@ export function VotingAdminPanel() {
       setArtists(data.artists ?? []);
       setLiveResults(data.results ?? []);
       setSummary(data.summary ?? emptySummary);
+      setParticipantMessage(data.session?.participant_message ?? "");
+      setDailyGames(data.session?.daily_games ?? []);
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -138,8 +148,64 @@ export function VotingAdminPanel() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Error");
+        return data;
+      }
+      void refresh();
+      return data;
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const saveSessionConfig = async () => {
+    setConfigSaved("");
+    const data = await patchSession(
+      {
+        participant_message: participantMessage,
+        daily_games: dailyGames,
+      },
+      "save-config"
+    );
+    if (data && !data.error) {
+      setConfigSaved("Configuracion guardada");
+      setTimeout(() => setConfigSaved(""), 2000);
+    }
+  };
+
+  const addDailyGame = () => {
+    setDailyGames((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), name: "", description: "" },
+    ]);
+  };
+
+  const updateDailyGame = (id: string, updates: Partial<DailyGame>) => {
+    setDailyGames((prev) => prev.map((game) => (game.id === id ? { ...game, ...updates } : game)));
+  };
+
+  const removeDailyGame = (id: string) => {
+    setDailyGames((prev) => prev.filter((game) => game.id !== id));
+  };
+
+  const drawObjects = async () => {
+    setBusyAction("draw-objects");
+    setError("");
+    try {
+      const res = await fetch("/api/voting/session", {
+        method: "PATCH",
+        headers: adminHeaders(),
+        body: JSON.stringify({ action: "draw_objects" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Error");
         return;
       }
+      const winner = data.winner ?? data.selectedObjects?.[0] ?? "";
+      const candidates = data.rouletteCandidates ?? data.session?.roulette_candidates ?? [];
+      setRouletteItems(candidates.length > 0 ? candidates : winner ? [winner] : []);
+      setRouletteWinner(winner);
+      setRouletteOpen(true);
       void refresh();
     } finally {
       setBusyAction(null);
@@ -171,6 +237,95 @@ export function VotingAdminPanel() {
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-4">
+      {liveResults.length > 0 && <LiveScoreboard results={liveResults} />}
+
+      <WordRoulette
+        items={rouletteItems}
+        winner={rouletteWinner}
+        open={rouletteOpen}
+        onComplete={() => setRouletteOpen(false)}
+      />
+
+      {session && (
+        <section className="mb-4 mt-4 rounded-2xl border border-indigo-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display text-lg font-bold text-gray-800">Panel de configuracion</h2>
+              <p className="text-xs text-gray-500">
+                Mensaje de bienvenida y juegos del dia para los participantes.
+              </p>
+            </div>
+            {configSaved && <span className="text-xs font-bold text-green-600">{configSaved}</span>}
+          </div>
+
+          <label className="mt-4 block text-xs font-bold uppercase tracking-wide text-gray-500">
+            Mensaje para participantes
+          </label>
+          <textarea
+            value={participantMessage}
+            onChange={(e) => setParticipantMessage(e.target.value)}
+            rows={3}
+            placeholder="Ej: Bienvenidos a la noche de impro TAVA. Lean los juegos del dia y preparen sus mejores ideas."
+            className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+          />
+
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Juegos del dia</p>
+            <button
+              type="button"
+              onClick={addDailyGame}
+              className="rounded-lg bg-purple-50 px-3 py-1 text-xs font-bold text-tava-purple"
+            >
+              + Agregar juego
+            </button>
+          </div>
+
+          <div className="mt-2 space-y-3">
+            {dailyGames.length === 0 && (
+              <p className="rounded-xl bg-gray-50 px-3 py-4 text-center text-xs text-gray-500">
+                Agrega los juegos que se jugaran hoy. Los participantes los veran con un boton flotante.
+              </p>
+            )}
+            {dailyGames.map((game, index) => (
+              <div key={game.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-black uppercase text-gray-400">Juego {index + 1}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeDailyGame(game.id)}
+                    className="text-xs font-bold text-red-500"
+                  >
+                    Quitar
+                  </button>
+                </div>
+                <input
+                  value={game.name}
+                  onChange={(e) => updateDailyGame(game.id, { name: e.target.value })}
+                  placeholder="Nombre del juego"
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                />
+                <textarea
+                  value={game.description}
+                  onChange={(e) => updateDailyGame(game.id, { description: e.target.value })}
+                  rows={2}
+                  placeholder="Descripcion: reglas, duracion, dinamica..."
+                  className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                />
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            disabled={!!busyAction}
+            onClick={() => void saveSessionConfig()}
+            className="mt-4 w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white disabled:opacity-50"
+          >
+            Guardar configuracion
+          </button>
+        </section>
+      )}
+
       {session && (
         <section className="mb-4 rounded-2xl border border-tava-purple/30 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -290,7 +445,7 @@ export function VotingAdminPanel() {
           <button
             type="button"
             disabled={!!busyAction || summary.objectSubmissionCount === 0}
-            onClick={() => void patchSession({ action: "draw_objects" }, "draw-objects")}
+            onClick={() => void drawObjects()}
             className="rounded-xl bg-amber-500 py-3 text-sm font-bold text-white disabled:opacity-40"
           >
             {selectedObjects.length > 0 ? "Cambiar palabra" : "Sortear palabra"}

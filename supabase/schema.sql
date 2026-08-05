@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS voting_sessions (
   current_round INT NOT NULL DEFAULT 1,
   object_collection_open BOOLEAN NOT NULL DEFAULT false,
   selected_objects TEXT[] NOT NULL DEFAULT '{}',
+  participant_message TEXT NOT NULL DEFAULT '',
+  daily_games JSONB NOT NULL DEFAULT '[]'::jsonb,
+  roulette_candidates TEXT[] NOT NULL DEFAULT '{}',
+  roulette_spun_at TIMESTAMPTZ,
   admin_pin_hash TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -6,6 +6,7 @@ import { generateSessionCode, hashPin } from "@/lib/voting/pin";
 import { verifyMasterAdminCode } from "@/lib/voting/master-admin";
 import type {
   Artist,
+  DailyGame,
   RoundObjectSubmission,
   Vote,
   VotingSession,
@@ -24,8 +25,35 @@ function sessionSelect() {
     "current_round",
     "object_collection_open",
     "selected_objects",
+    "participant_message",
+    "daily_games",
+    "roulette_candidates",
+    "roulette_spun_at",
     "created_at",
   ].join(", ");
+}
+
+function parseDailyGames(value: unknown): DailyGame[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => item != null && typeof item === "object")
+    .map((item) => ({
+      id: String(item.id ?? crypto.randomUUID()),
+      name: String(item.name ?? "").trim(),
+      description: String(item.description ?? "").trim(),
+    }))
+    .filter((game) => game.name.length > 0);
+}
+
+function normalizeSession(session: StoredSession): Omit<StoredSession, "admin_pin_hash"> {
+  const { admin_pin_hash: _, ...safeSession } = session;
+  return {
+    ...safeSession,
+    participant_message: safeSession.participant_message ?? "",
+    daily_games: parseDailyGames(safeSession.daily_games),
+    roulette_candidates: safeSession.roulette_candidates ?? [],
+    roulette_spun_at: safeSession.roulette_spun_at ?? null,
+  };
 }
 
 async function loadSessionByCode(code: string) {
@@ -36,7 +64,7 @@ async function loadSessionByCode(code: string) {
     .eq("code", code.toUpperCase())
     .single();
   if (error || !session) return null;
-  return session as StoredSession;
+  return session as unknown as StoredSession;
 }
 
 function summarizeVotes(votes: Vote[], round: number, objectSubmissionCount: number): VotingSummary {
@@ -75,7 +103,6 @@ function drawObjects(objects: string[], count = 1): string[] {
 export async function GET(request: NextRequest) {
   try {
     const code = request.nextUrl.searchParams.get("code");
-    const includeResults = request.nextUrl.searchParams.get("includeResults") === "true";
     const voterId = request.nextUrl.searchParams.get("voterId");
     if (!code) {
       return NextResponse.json({ error: "code required" }, { status: 400 });
@@ -117,16 +144,13 @@ export async function GET(request: NextRequest) {
 
     let results = null;
     let summary: VotingSummary | null = null;
-    if (session.show_results || includeResults) {
-      const { data: votes } = await db.from("votes").select("*").eq("session_id", session.id);
-      const safeVotes = (votes ?? []) as Vote[];
-      results = computeResults((artists ?? []) as Artist[], safeVotes);
-      summary = summarizeVotes(safeVotes, round, (objectRows ?? []).length);
-    }
+    const { data: votes } = await db.from("votes").select("*").eq("session_id", session.id);
+    const safeVotes = (votes ?? []) as Vote[];
+    results = computeResults((artists ?? []) as Artist[], safeVotes);
+    summary = summarizeVotes(safeVotes, round, (objectRows ?? []).length);
 
-    const { admin_pin_hash: _, ...safeSession } = session;
     return NextResponse.json({
-      session: safeSession,
+      session: normalizeSession(session),
       artists: artists ?? [],
       results,
       summary,
@@ -173,7 +197,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ session: data });
+      return NextResponse.json({ session: normalizeSession(data as unknown as StoredSession) });
     }
 
     if (action === "auth") {
@@ -188,8 +212,7 @@ export async function POST(request: NextRequest) {
       if (!session) {
         return NextResponse.json({ error: "Sesion no encontrada" }, { status: 404 });
       }
-      const { admin_pin_hash: _, ...safeSession } = session;
-      return NextResponse.json({ session: safeSession, ok: true });
+      return NextResponse.json({ session: normalizeSession(session), ok: true });
     }
 
     if (action === "join") {
@@ -197,8 +220,7 @@ export async function POST(request: NextRequest) {
       if (!code) return NextResponse.json({ error: "code required" }, { status: 400 });
       const session = await loadSessionByCode(code);
       if (!session) return NextResponse.json({ error: "Sesion no encontrada" }, { status: 404 });
-      const { admin_pin_hash: _, ...safeSession } = session;
-      return NextResponse.json({ session: safeSession });
+      return NextResponse.json({ session: normalizeSession(session) });
     }
 
     return NextResponse.json({ error: "action invalid" }, { status: 400 });
@@ -233,23 +255,31 @@ export async function PATCH(request: NextRequest) {
           show_results: false,
           object_collection_open: false,
           selected_objects: [],
+          roulette_candidates: [],
+          roulette_spun_at: null,
         })
         .eq("id", session.id)
         .select(sessionSelect())
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ session: data });
+      return NextResponse.json({ session: normalizeSession(data as unknown as StoredSession) });
     }
 
     if (body.action === "open_objects") {
       const { data, error } = await db
         .from("voting_sessions")
-        .update({ object_collection_open: true, selected_objects: [], show_results: false })
+        .update({
+          object_collection_open: true,
+          selected_objects: [],
+          show_results: false,
+          roulette_candidates: [],
+          roulette_spun_at: null,
+        })
         .eq("id", session.id)
         .select(sessionSelect())
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ session: data });
+      return NextResponse.json({ session: normalizeSession(data as unknown as StoredSession) });
     }
 
     if (body.action === "close_objects") {
@@ -260,7 +290,7 @@ export async function PATCH(request: NextRequest) {
         .select(sessionSelect())
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ session: data });
+      return NextResponse.json({ session: normalizeSession(data as unknown as StoredSession) });
     }
 
     if (body.action === "draw_objects") {
@@ -284,23 +314,42 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "Aun no hay objetos para sortear" }, { status: 400 });
       }
 
+      const rouletteCandidates = objectNames.length > 0 ? objectNames : selected;
+      const spunAt = new Date().toISOString();
+
       const { data, error } = await db
         .from("voting_sessions")
-        .update({ selected_objects: selected, object_collection_open: false })
+        .update({
+          selected_objects: selected,
+          object_collection_open: false,
+          roulette_candidates: rouletteCandidates,
+          roulette_spun_at: spunAt,
+        })
         .eq("id", session.id)
         .select(sessionSelect())
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ session: data, selectedObjects: selected });
+      return NextResponse.json({
+        session: normalizeSession(data as unknown as StoredSession),
+        selectedObjects: selected,
+        rouletteCandidates,
+        winner: selected[0],
+      });
     }
 
-    const updates: Record<string, boolean | string | number> = {};
+    const updates: Record<string, boolean | string | number | DailyGame[] | string[] | null> = {};
     if (typeof body.is_open === "boolean") updates.is_open = body.is_open;
     if (typeof body.show_results === "boolean") updates.show_results = body.show_results;
     if (typeof body.object_collection_open === "boolean") {
       updates.object_collection_open = body.object_collection_open;
     }
     if (typeof body.title === "string") updates.title = body.title.trim();
+    if (typeof body.participant_message === "string") {
+      updates.participant_message = body.participant_message.trim();
+    }
+    if (Array.isArray(body.daily_games)) {
+      updates.daily_games = parseDailyGames(body.daily_games);
+    }
 
     const { data, error } = await db
       .from("voting_sessions")
@@ -310,7 +359,7 @@ export async function PATCH(request: NextRequest) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ session: data });
+    return NextResponse.json({ session: normalizeSession(data as unknown as StoredSession) });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

@@ -2,24 +2,78 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { clearSession, getSessionCode, getVoterId } from "@/lib/role-storage";
+import { clearSession, getSessionCode, getSessionId, getVoterId } from "@/lib/role-storage";
 import type { Artist, ArtistResult, VotingSession } from "@/lib/voting/types";
 import { ArtistIdentityCard } from "./ArtistIdentityCard";
+import { DailyGamesFab } from "./DailyGamesFab";
+import { LiveScoreboard } from "./LiveScoreboard";
 import { VotingResults } from "./VotingResults";
+import { WordRoulette } from "./WordRoulette";
 
 interface MyVote {
   artist_id: string;
   value: number;
 }
 
+function rouletteStorageKey(sessionId: string) {
+  return `tava-last-roulette-${sessionId}`;
+}
+
+function ParticipantShell({
+  session,
+  results,
+  children,
+  rouletteOpen,
+  rouletteItems,
+  rouletteWinner,
+  onRouletteComplete,
+}: {
+  session: VotingSession | null;
+  results: ArtistResult[];
+  children: React.ReactNode;
+  rouletteOpen: boolean;
+  rouletteItems: string[];
+  rouletteWinner: string;
+  onRouletteComplete: () => void;
+}) {
+  return (
+    <>
+      <WordRoulette
+        items={rouletteItems}
+        winner={rouletteWinner}
+        open={rouletteOpen}
+        onComplete={onRouletteComplete}
+      />
+      <DailyGamesFab games={session?.daily_games ?? []} />
+      {results.length > 0 && <LiveScoreboard results={results} compact />}
+      {session?.participant_message?.trim() && (
+        <motion.section
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-3 mt-3 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 p-4 shadow-sm"
+        >
+          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-600">
+            Mensaje del admin
+          </p>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
+            {session.participant_message}
+          </p>
+        </motion.section>
+      )}
+      {children}
+    </>
+  );
+}
+
 export function VotingParticipantView() {
   const code = getSessionCode();
+  const sessionId = getSessionId();
   const voterId = getVoterId();
   const [session, setSession] = useState<VotingSession | null>(null);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [votes, setVotes] = useState<Record<string, number>>({});
   const [pendingVotes, setPendingVotes] = useState<Record<string, number>>({});
-  const [results, setResults] = useState<ArtistResult[] | null>(null);
+  const [results, setResults] = useState<ArtistResult[]>([]);
   const [myObjects, setMyObjects] = useState<string[]>([]);
   const [objectInput, setObjectInput] = useState("");
   const [saved, setSaved] = useState("");
@@ -28,6 +82,26 @@ export function VotingParticipantView() {
   const [attemptedVoteSubmit, setAttemptedVoteSubmit] = useState(false);
   const [firstLoad, setFirstLoad] = useState(true);
   const [error, setError] = useState("");
+  const [rouletteOpen, setRouletteOpen] = useState(false);
+  const [rouletteItems, setRouletteItems] = useState<string[]>([]);
+  const [rouletteWinner, setRouletteWinner] = useState("");
+
+  const maybeShowRoulette = useCallback((nextSession: VotingSession) => {
+    if (!nextSession.roulette_spun_at || !sessionId) return;
+    const winner = nextSession.selected_objects?.[0] ?? "";
+    if (!winner) return;
+
+    const lastSeen = localStorage.getItem(rouletteStorageKey(sessionId));
+    if (lastSeen === nextSession.roulette_spun_at) return;
+
+    const candidates =
+      nextSession.roulette_candidates?.length > 0
+        ? nextSession.roulette_candidates
+        : [winner];
+    setRouletteItems(candidates);
+    setRouletteWinner(winner);
+    setRouletteOpen(true);
+  }, [sessionId]);
 
   const refresh = useCallback(async () => {
     if (!code) return;
@@ -39,8 +113,7 @@ export function VotingParticipantView() {
       if (!res.ok) throw new Error(data.error);
       setSession(data.session);
       setArtists(data.artists ?? []);
-      if (data.results) setResults(data.results);
-      setMyObjects(data.myObjectSubmissions ?? []);
+      setResults(data.results ?? []);
 
       const map: Record<string, number> = {};
       for (const v of (data.myVotes ?? []) as MyVote[]) map[v.artist_id] = v.value;
@@ -50,19 +123,28 @@ export function VotingParticipantView() {
         for (const artistId of Object.keys(map)) delete next[artistId];
         return next;
       });
+      setMyObjects(data.myObjectSubmissions ?? []);
+      maybeShowRoulette(data.session);
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
       setFirstLoad(false);
     }
-  }, [code, voterId]);
+  }, [code, voterId, maybeShowRoulette]);
 
   useEffect(() => {
     void refresh();
     const t = setInterval(() => void refresh(), 5000);
     return () => clearInterval(t);
   }, [refresh]);
+
+  const handleRouletteComplete = () => {
+    if (session?.roulette_spun_at && sessionId) {
+      localStorage.setItem(rouletteStorageKey(sessionId), session.roulette_spun_at);
+    }
+    setRouletteOpen(false);
+  };
 
   const votedCount = useMemo(
     () => artists.filter((artist) => votes[artist.id] != null).length,
@@ -168,198 +250,225 @@ export function VotingParticipantView() {
     );
   }
 
-  if (session?.show_results && results) {
+  if (session?.show_results && results.length > 0) {
     return (
-      <div className="flex h-full min-h-0 touch-pan-y flex-col overflow-y-auto overscroll-contain px-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] [-webkit-overflow-scrolling:touch]">
-        <VotingResults results={results} reveal podium />
-        <ExitButton />
-      </div>
+      <ParticipantShell
+        session={session}
+        results={results}
+        rouletteOpen={rouletteOpen}
+        rouletteItems={rouletteItems}
+        rouletteWinner={rouletteWinner}
+        onRouletteComplete={handleRouletteComplete}
+      >
+        <div className="flex h-full min-h-0 touch-pan-y flex-col overflow-y-auto overscroll-contain px-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] [-webkit-overflow-scrolling:touch]">
+          <VotingResults results={results} reveal podium />
+          <ExitButton />
+        </div>
+      </ParticipantShell>
     );
   }
 
   if (session?.is_open) {
     return (
-      <div className="flex h-full min-h-0 touch-pan-y flex-col overflow-y-auto overscroll-contain px-3 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] [-webkit-overflow-scrolling:touch] sm:px-5">
-        {savingVotes && <SavingOverlay text="Guardando votos" />}
+      <ParticipantShell
+        session={session}
+        results={results}
+        rouletteOpen={rouletteOpen}
+        rouletteItems={rouletteItems}
+        rouletteWinner={rouletteWinner}
+        onRouletteComplete={handleRouletteComplete}
+      >
+        <div className="flex h-full min-h-0 touch-pan-y flex-col overflow-y-auto overscroll-contain px-3 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] [-webkit-overflow-scrolling:touch] sm:px-5">
+          {savingVotes && <SavingOverlay text="Guardando votos" />}
 
-        <section className="rounded-3xl border border-green-200 bg-white p-4 text-center shadow-lg">
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-green-600">
-            Momento de votacion
-          </p>
-          <h2 className="mt-1 font-display text-2xl font-black text-gray-900">
-            Califica a cada jugador
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Ronda {round} - Marca una nota para todos y envia una sola vez.
-          </p>
-          <div className="mt-4 rounded-2xl bg-green-50 p-3">
-            <div className="flex items-center justify-between text-xs font-bold text-green-800">
-              <span>Calificaciones listas</span>
-              <span>
-                {readyVoteCount}/{artists.length}
-              </span>
+          <section className="mt-3 rounded-3xl border border-green-200 bg-white p-4 text-center shadow-lg">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-green-600">
+              Momento de votacion
+            </p>
+            <h2 className="mt-1 font-display text-2xl font-black text-gray-900">
+              Califica a cada jugador
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Ronda {round} - Marca una nota para todos y envia una sola vez.
+            </p>
+            <div className="mt-4 rounded-2xl bg-green-50 p-3">
+              <div className="flex items-center justify-between text-xs font-bold text-green-800">
+                <span>Calificaciones listas</span>
+                <span>
+                  {readyVoteCount}/{artists.length}
+                </span>
+              </div>
+              <div className="mt-2 h-3 overflow-hidden rounded-full bg-white">
+                <div
+                  className="h-full rounded-full bg-green-500 transition-all"
+                  style={{ width: `${artists.length ? (readyVoteCount / artists.length) * 100 : 0}%` }}
+                />
+              </div>
             </div>
-            <div className="mt-2 h-3 overflow-hidden rounded-full bg-white">
-              <div
-                className="h-full rounded-full bg-green-500 transition-all"
-                style={{ width: `${artists.length ? (readyVoteCount / artists.length) * 100 : 0}%` }}
-              />
-            </div>
+            {attemptedVoteSubmit && missingArtists.length > 0 && (
+              <p className="mt-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-700">
+                Te falta votar por: {missingArtists.map((artist) => artist.name).join(", ")}
+              </p>
+            )}
+            {allVotesDone && (
+              <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-black text-amber-800">
+                Listo. Tus votos quedaron guardados y no necesitas votar otra vez.
+              </p>
+            )}
+          </section>
+
+          {selectedObjects.length > 0 && <SelectedObjects objects={selectedObjects} />}
+
+          <div className="mt-4 grid gap-4 pb-28 lg:grid-cols-2">
+            {artists.map((artist) => {
+              const savedVote = votes[artist.id];
+              const pendingVote = pendingVotes[artist.id];
+              const isVoted = savedVote != null;
+
+              return (
+                <ArtistIdentityCard key={artist.id} artist={artist} muted={isVoted}>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {[1, 2, 3, 4, 5].map((value) => {
+                        const selected = (isVoted ? savedVote : pendingVote) === value;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            disabled={isVoted || savingVotes}
+                            onClick={() => {
+                              setPendingVotes((prev) => ({ ...prev, [artist.id]: value }));
+                              if (attemptedVoteSubmit) setError("");
+                            }}
+                            className={`rounded-xl border py-3 text-sm font-black transition ${
+                              selected
+                                ? "border-gray-900 bg-gray-900 text-white"
+                                : "border-gray-200 bg-gray-50 text-gray-700 disabled:opacity-50"
+                            }`}
+                          >
+                            {value}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {isVoted && (
+                      <p className="text-center text-xs font-bold text-green-700">
+                        Guardado con {savedVote}. Este voto ya no se puede cambiar.
+                      </p>
+                    )}
+                  </div>
+                </ArtistIdentityCard>
+              );
+            })}
           </div>
-          {attemptedVoteSubmit && missingArtists.length > 0 && (
-            <p className="mt-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-700">
-              Te falta votar por: {missingArtists.map((artist) => artist.name).join(", ")}
-            </p>
+
+          {artists.length === 0 && (
+            <p className="mt-8 text-center text-sm text-gray-500">El administrador aun no ha agregado jugadores.</p>
           )}
-          {allVotesDone && (
-            <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-black text-amber-800">
-              Listo. Tus votos quedaron guardados y no necesitas votar otra vez.
-            </p>
-          )}
+
+          <section className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-20 border-t border-gray-200 bg-white/95 px-3 py-3 shadow-[0_-10px_24px_rgba(0,0,0,0.08)] backdrop-blur sm:px-5">
+            <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-center text-xs font-bold text-gray-500 sm:text-left">
+                {allVotesDone
+                  ? "Votacion enviada."
+                  : allVotesReady
+                    ? "Todo listo para enviar."
+                    : `Faltan ${missingArtists.length} jugador${missingArtists.length === 1 ? "" : "es"}.`}
+              </p>
+              <button
+                type="button"
+                disabled={savingVotes || allVotesDone || artists.length === 0}
+                onClick={() => void submitAllVotes()}
+                className={`rounded-2xl px-6 py-3 text-sm font-black text-white transition disabled:opacity-45 ${
+                  allVotesReady ? "bg-green-600" : "bg-tava-purple"
+                }`}
+              >
+                {allVotesDone ? "Ya votaste" : savingVotes ? "Guardando..." : "Votar"}
+              </button>
+            </div>
+          </section>
+
+          {saved && <StatusMessage text={saved} />}
+          {error && <p className="mt-4 text-center text-sm text-red-500">{error}</p>}
+          <ExitButton />
+        </div>
+      </ParticipantShell>
+    );
+  }
+
+  return (
+    <ParticipantShell
+      session={session}
+      results={results}
+      rouletteOpen={rouletteOpen}
+      rouletteItems={rouletteItems}
+      rouletteWinner={rouletteWinner}
+      onRouletteComplete={handleRouletteComplete}
+    >
+      <div className="flex h-full min-h-0 touch-pan-y flex-col overflow-y-auto overscroll-contain px-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] [-webkit-overflow-scrolling:touch]">
+        {savingObject && <SavingOverlay text="Enviando objeto" />}
+
+        <section className="mt-3 rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-400">Sala {code}</p>
+          <h2 className="mt-1 font-display text-2xl font-black text-gray-900">
+            {session?.object_collection_open ? "Momento de proponer objetos" : "Esperando al admin"}
+          </h2>
+          <p className="mt-2 text-sm text-gray-500">
+            {session?.object_collection_open
+              ? "Envia objetos claros para que el sistema sortee una palabra."
+              : "Cuando el admin abra votacion, esta pantalla cambiara automaticamente."}
+          </p>
         </section>
 
         {selectedObjects.length > 0 && <SelectedObjects objects={selectedObjects} />}
 
-        <div className="mt-4 grid gap-4 pb-4 lg:grid-cols-2">
-          {artists.map((artist) => {
-            const savedVote = votes[artist.id];
-            const pendingVote = pendingVotes[artist.id];
-            const isVoted = savedVote != null;
+        {session?.object_collection_open && (
+          <section className="mt-5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <InfoCard title="Idea clara" text="Escribe un objeto concreto: maleta, radio, sombrilla." tone="amber" />
+              <InfoCard title="Una por envio" text="Puedes enviar varias ideas, pero una palabra a la vez." tone="purple" />
+              <InfoCard title="Sorteo" text="El admin sortea una palabra y aparecera aqui para todos." tone="rose" />
+            </div>
 
-            return (
-              <ArtistIdentityCard key={artist.id} artist={artist} muted={isVoted}>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-5 gap-1.5">
-                    {[1, 2, 3, 4, 5].map((value) => {
-                      const selected = (isVoted ? savedVote : pendingVote) === value;
-                      return (
-                        <button
-                          key={value}
-                          type="button"
-                          disabled={isVoted || savingVotes}
-                          onClick={() => {
-                            setPendingVotes((prev) => ({ ...prev, [artist.id]: value }));
-                            if (attemptedVoteSubmit) setError("");
-                          }}
-                          className={`rounded-xl border py-3 text-sm font-black transition ${
-                            selected
-                              ? "border-gray-900 bg-gray-900 text-white"
-                              : "border-gray-200 bg-gray-50 text-gray-700 disabled:opacity-50"
-                          }`}
-                        >
-                          {value}
-                        </button>
-                      );
-                    })}
-                  </div>
+            <form onSubmit={submitObject} className="mt-3 flex gap-2">
+              <input
+                value={objectInput}
+                onChange={(e) => setObjectInput(e.target.value)}
+                disabled={savingObject}
+                maxLength={48}
+                placeholder="Ej: paraguas, radio, maleta..."
+                className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm disabled:bg-gray-50"
+              />
+              <button
+                type="submit"
+                disabled={!objectInput.trim() || savingObject}
+                className="rounded-xl bg-tava-purple px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
+              >
+                Enviar
+              </button>
+            </form>
 
-                  {isVoted && (
-                    <p className="text-center text-xs font-bold text-green-700">
-                      Guardado con {savedVote}. Este voto ya no se puede cambiar.
-                    </p>
-                  )}
-                </div>
-              </ArtistIdentityCard>
-            );
-          })}
-        </div>
-
-        {artists.length === 0 && (
-          <p className="mt-8 text-center text-sm text-gray-500">El administrador aun no ha agregado jugadores.</p>
+            {myObjects.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {myObjects.map((objectName) => (
+                  <span
+                    key={objectName}
+                    className="rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-tava-purple"
+                  >
+                    {objectName}
+                  </span>
+                ))}
+              </div>
+            )}
+          </section>
         )}
-
-        <section className="sticky bottom-0 z-20 -mx-3 mt-2 border-t border-gray-200 bg-white/95 px-3 py-3 shadow-[0_-10px_24px_rgba(0,0,0,0.08)] backdrop-blur sm:-mx-5 sm:px-5">
-          <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-center text-xs font-bold text-gray-500 sm:text-left">
-              {allVotesDone
-                ? "Votacion enviada."
-                : allVotesReady
-                  ? "Todo listo para enviar."
-                  : `Faltan ${missingArtists.length} jugador${missingArtists.length === 1 ? "" : "es"}.`}
-            </p>
-            <button
-              type="button"
-              disabled={savingVotes || allVotesDone || artists.length === 0}
-              onClick={() => void submitAllVotes()}
-              className={`rounded-2xl px-6 py-3 text-sm font-black text-white transition disabled:opacity-45 ${
-                allVotesReady ? "bg-green-600" : "bg-tava-purple"
-              }`}
-            >
-              {allVotesDone ? "Ya votaste" : savingVotes ? "Guardando..." : "Votar"}
-            </button>
-          </div>
-        </section>
 
         {saved && <StatusMessage text={saved} />}
         {error && <p className="mt-4 text-center text-sm text-red-500">{error}</p>}
         <ExitButton />
       </div>
-    );
-  }
-
-  return (
-    <div className="flex h-full min-h-0 touch-pan-y flex-col overflow-y-auto overscroll-contain px-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] [-webkit-overflow-scrolling:touch]">
-      {savingObject && <SavingOverlay text="Enviando objeto" />}
-
-      <section className="rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-400">Sala {code}</p>
-        <h2 className="mt-1 font-display text-2xl font-black text-gray-900">
-          {session?.object_collection_open ? "Momento de proponer objetos" : "Esperando al admin"}
-        </h2>
-        <p className="mt-2 text-sm text-gray-500">
-          {session?.object_collection_open
-            ? "Envia objetos claros para que el sistema sortee una palabra."
-            : "Cuando el admin abra votacion, esta pantalla cambiara automaticamente."}
-        </p>
-      </section>
-
-      {selectedObjects.length > 0 && <SelectedObjects objects={selectedObjects} />}
-
-      {session?.object_collection_open && (
-        <section className="mt-5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="grid gap-2 sm:grid-cols-3">
-            <InfoCard title="Idea clara" text="Escribe un objeto concreto: maleta, radio, sombrilla." tone="amber" />
-            <InfoCard title="Una por envio" text="Puedes enviar varias ideas, pero una palabra a la vez." tone="purple" />
-            <InfoCard title="Sorteo" text="El admin sortea una palabra y aparecera aqui para todos." tone="rose" />
-          </div>
-
-          <form onSubmit={submitObject} className="mt-3 flex gap-2">
-            <input
-              value={objectInput}
-              onChange={(e) => setObjectInput(e.target.value)}
-              disabled={savingObject}
-              maxLength={48}
-              placeholder="Ej: paraguas, radio, maleta..."
-              className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm disabled:bg-gray-50"
-            />
-            <button
-              type="submit"
-              disabled={!objectInput.trim() || savingObject}
-              className="rounded-xl bg-tava-purple px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
-            >
-              Enviar
-            </button>
-          </form>
-
-          {myObjects.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {myObjects.map((objectName) => (
-                <span
-                  key={objectName}
-                  className="rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-tava-purple"
-                >
-                  {objectName}
-                </span>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {saved && <StatusMessage text={saved} />}
-      {error && <p className="mt-4 text-center text-sm text-red-500">{error}</p>}
-      <ExitButton />
-    </div>
+    </ParticipantShell>
   );
 }
 

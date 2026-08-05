@@ -1,3 +1,9 @@
+export interface DailyGame {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export interface VotingSession {
   id: string;
   code: string;
@@ -7,6 +13,10 @@ export interface VotingSession {
   current_round: number;
   object_collection_open: boolean;
   selected_objects: string[];
+  participant_message: string;
+  daily_games: DailyGame[];
+  roulette_candidates: string[];
+  roulette_spun_at: string | null;
   created_at: string;
 }
 
