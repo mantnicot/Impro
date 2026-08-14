@@ -241,7 +241,7 @@ export default function HomePage() {
           key={module}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="shrink-0 px-4 pb-2 text-center sm:px-6"
+          className={`shrink-0 px-4 pb-2 text-center sm:px-6 ${module === "voting" ? "hidden sm:block" : ""}`}
         >
           <h1 className="font-display text-2xl font-black text-gray-800 sm:text-3xl">
             {module === "words" ? (

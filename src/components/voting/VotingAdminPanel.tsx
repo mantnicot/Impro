@@ -15,6 +15,14 @@ import { LiveScoreboard } from "./LiveScoreboard";
 import { VotingResults } from "./VotingResults";
 import { WordRoulette } from "./WordRoulette";
 
+type AdminStep = "sala" | "show" | "jugadores";
+
+const STEPS: { id: AdminStep; number: string; label: string }[] = [
+  { id: "sala", number: "1", label: "Sala" },
+  { id: "show", number: "2", label: "Show" },
+  { id: "jugadores", number: "3", label: "Jugadores" },
+];
+
 function adminHeaders() {
   return {
     "Content-Type": "application/json",
@@ -30,6 +38,9 @@ const emptySummary: VotingSummary = {
   currentRoundParticipantCount: 0,
   objectSubmissionCount: 0,
 };
+
+const fieldClass =
+  "min-h-12 w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-base text-gray-900 outline-none focus:border-tava-purple";
 
 export function VotingAdminPanel() {
   const code = getSessionCode();
@@ -50,6 +61,7 @@ export function VotingAdminPanel() {
   const [rouletteOpen, setRouletteOpen] = useState(false);
   const [rouletteItems, setRouletteItems] = useState<string[]>([]);
   const [rouletteWinner, setRouletteWinner] = useState("");
+  const [step, setStep] = useState<AdminStep>("sala");
   const configTouchedRef = useRef(false);
 
   const applySessionConfig = useCallback((nextSession: VotingSession | null | undefined) => {
@@ -164,7 +176,7 @@ export function VotingAdminPanel() {
     }
   };
 
-  const saveSessionConfig = async () => {
+  const saveSessionConfig = async (goNext = false) => {
     setConfigSaved("");
     setError("");
 
@@ -188,15 +200,13 @@ export function VotingAdminPanel() {
       setDailyGames(data.session.daily_games ?? []);
       setConfigSaved("Configuracion guardada");
       setTimeout(() => setConfigSaved(""), 2000);
+      if (goNext) setStep("jugadores");
     }
   };
 
   const addDailyGame = () => {
     configTouchedRef.current = true;
-    setDailyGames((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), name: "", description: "" },
-    ]);
+    setDailyGames((prev) => [...prev, { id: crypto.randomUUID(), name: "", description: "" }]);
   };
 
   const updateDailyGame = (id: string, updates: Partial<DailyGame>) => {
@@ -258,9 +268,7 @@ export function VotingAdminPanel() {
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:px-4">
-      {liveResults.length > 0 && <LiveScoreboard results={liveResults} />}
-
+    <div className="flex min-h-0 flex-1 flex-col">
       <WordRoulette
         items={rouletteItems}
         winner={rouletteWinner}
@@ -268,219 +276,275 @@ export function VotingAdminPanel() {
         onComplete={() => setRouletteOpen(false)}
       />
 
-      {session && (
-        <section className="mb-4 mt-3 rounded-2xl border border-tava-purple/30 bg-white p-3 shadow-sm sm:p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Codigo de sala</p>
-              <p className="font-display text-2xl font-black tracking-widest text-tava-purple sm:text-3xl">{session.code}</p>
-              <p className="mt-1 text-sm text-gray-600">{session.title}</p>
-            </div>
-            <div className="rounded-2xl bg-purple-50 px-4 py-3 text-right">
-              <p className="text-xs font-bold uppercase tracking-widest text-tava-purple">Estado</p>
-              <p className="font-display text-lg font-black text-gray-800">{statusCopy}</p>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded-xl bg-gray-50 p-3">
-              <p className="text-[10px] font-bold uppercase text-gray-400">Ronda</p>
-              <p className="font-display text-2xl font-black text-gray-800">{round}</p>
-            </div>
-            <div className="rounded-xl bg-gray-50 p-3">
-              <p className="text-[10px] font-bold uppercase text-gray-400">Votos guardados</p>
-              <p className="font-display text-2xl font-black text-gray-800">{summary.currentRoundVotes}</p>
-            </div>
-            <div className="rounded-xl bg-gray-50 p-3">
-              <p className="text-[10px] font-bold uppercase text-gray-400">Votantes activos</p>
-              <p className="font-display text-2xl font-black text-gray-800">
-                {summary.currentRoundParticipantCount}
-              </p>
-            </div>
-            <div className="rounded-xl bg-gray-50 p-3">
-              <p className="text-[10px] font-bold uppercase text-gray-400">Progreso</p>
-              <p className="font-display text-2xl font-black text-gray-800">
-                {possibleVotes ? Math.round((summary.currentRoundVotes / possibleVotes) * 100) : 0}%
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              disabled={!!busyAction}
-              onClick={() =>
-                void patchSession({ is_open: !session.is_open }, session.is_open ? "close-vote" : "open-vote")
-              }
-              className="rounded-xl bg-tava-purple py-3 text-sm font-bold text-white disabled:opacity-50"
-            >
-              {session.is_open ? "Cerrar votacion actual" : `Abrir votacion (ronda ${round})`}
-            </button>
-            <button
-              type="button"
-              disabled={session.is_open || !!busyAction}
-              onClick={() => void patchSession({ action: "new_round" }, "new-round")}
-              className="rounded-xl border-2 border-tava-neon-pink bg-pink-50 py-3 text-sm font-bold text-tava-neon-pink disabled:opacity-40"
-            >
-              Nueva ronda ({round + 1})
-            </button>
-            <button
-              type="button"
-              disabled={!!busyAction}
-              onClick={() => void patchSession({ show_results: true, is_open: false }, "publish")}
-              className="rounded-xl border-2 border-amber-400 bg-amber-50 py-3 text-sm font-bold text-amber-800 disabled:opacity-50 sm:col-span-2"
-            >
-              Publicar podio y ranking acumulado
-            </button>
-          </div>
-        </section>
-      )}
-
-      <section className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="font-display text-lg font-bold text-gray-800">Palabra de la ronda</h2>
-            <p className="text-xs text-gray-500">Los participantes proponen y el sistema sortea una sola palabra.</p>
-          </div>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-bold ${
-              session?.object_collection_open ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-            }`}
-          >
-            {session?.object_collection_open ? "Abierto" : "Cerrado"}
-          </span>
-        </div>
-
-        {selectedObjects.length > 0 && (
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            {selectedObjects.map((objectName, index) => (
-              <motion.div
-                key={objectName}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.08 }}
-                className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-center font-display text-lg font-black text-amber-900"
+      <div className="shrink-0 px-3 pt-1 sm:px-4">
+        <div className="grid grid-cols-3 gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
+          {STEPS.map((item) => {
+            const active = step === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setStep(item.id)}
+                className={`min-h-11 rounded-xl px-2 py-2 text-center transition ${
+                  active ? "bg-tava-purple text-white shadow-sm" : "text-gray-500"
+                }`}
               >
-                {objectName}
-              </motion.div>
-            ))}
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-80">{item.number}</p>
+                <p className="text-xs font-black sm:text-sm">{item.label}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-4">
+        {liveResults.length > 0 && step !== "show" && (
+          <div className="mb-3">
+            <LiveScoreboard results={liveResults} compact />
           </div>
         )}
 
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <button
-            type="button"
-            disabled={!!busyAction}
-            onClick={() => void patchSession({ action: "open_objects" }, "open-objects")}
-            className="rounded-xl border-2 border-green-500 bg-green-50 py-3 text-sm font-bold text-green-700 disabled:opacity-50"
-          >
-            Recibir objetos
-          </button>
-          <button
-            type="button"
-            disabled={!!busyAction}
-            onClick={() => void patchSession({ action: "close_objects" }, "close-objects")}
-            className="rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold text-gray-700 disabled:opacity-50"
-          >
-            Cerrar recepcion
-          </button>
-          <button
-            type="button"
-            disabled={!!busyAction || summary.objectSubmissionCount === 0}
-            onClick={() => void drawObjects()}
-            className="rounded-xl bg-amber-500 py-3 text-sm font-bold text-white disabled:opacity-40"
-          >
-            {selectedObjects.length > 0 ? "Cambiar palabra" : "Sortear palabra"}
-          </button>
-        </div>
-      </section>
+        {step === "sala" && session && (
+          <div className="space-y-3">
+            <section className="rounded-2xl border border-tava-purple/30 bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Codigo de sala</p>
+                  <p className="font-display text-3xl font-black tracking-widest text-tava-purple">{session.code}</p>
+                  <p className="mt-1 text-sm text-gray-600">{session.title}</p>
+                </div>
+                <div className="rounded-2xl bg-purple-50 px-4 py-3 text-right">
+                  <p className="text-xs font-bold uppercase tracking-widest text-tava-purple">Estado</p>
+                  <p className="font-display text-base font-black text-gray-800">{statusCopy}</p>
+                </div>
+              </div>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <h2 className="font-display text-lg font-bold text-gray-800">Jugadores / artistas</h2>
-        <div className="mt-3 grid gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3">
-          <input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Nombre del jugador"
-            className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
-            onKeyDown={(e) => e.key === "Enter" && void addArtist()}
-          />
-          <div className="grid gap-2 sm:grid-cols-[1fr_1fr]">
-            <select
-              value={newAvatarGender}
-              onChange={(e) => setNewAvatarGender(e.target.value as AvatarGender)}
-              className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
-            >
-              <option value="male">Muneco hombre</option>
-              <option value="female">Muneca mujer</option>
-            </select>
-            <select
-              value={newTagline}
-              onChange={(e) => setNewTagline(e.target.value)}
-              className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
-            >
-              {ARTIST_TAGLINES.map((tagline) => (
-                <option key={tagline} value={tagline}>
-                  {tagline}
-                </option>
-              ))}
-            </select>
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <StatCard label="Ronda" value={round} />
+                <StatCard label="Votos" value={summary.currentRoundVotes} />
+                <StatCard label="Votantes" value={summary.currentRoundParticipantCount} />
+                <StatCard
+                  label="Progreso"
+                  value={`${possibleVotes ? Math.round((summary.currentRoundVotes / possibleVotes) * 100) : 0}%`}
+                />
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <h2 className="font-display text-lg font-bold text-gray-800">Control de votacion</h2>
+              <div className="mt-3 grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  disabled={!!busyAction}
+                  onClick={() =>
+                    void patchSession({ is_open: !session.is_open }, session.is_open ? "close-vote" : "open-vote")
+                  }
+                  className="min-h-12 rounded-xl bg-tava-purple text-sm font-bold text-white disabled:opacity-50"
+                >
+                  {session.is_open ? "Cerrar votacion actual" : `Abrir votacion (ronda ${round})`}
+                </button>
+                <button
+                  type="button"
+                  disabled={session.is_open || !!busyAction}
+                  onClick={() => void patchSession({ action: "new_round" }, "new-round")}
+                  className="min-h-12 rounded-xl border-2 border-tava-neon-pink bg-pink-50 text-sm font-bold text-tava-neon-pink disabled:opacity-40"
+                >
+                  Nueva ronda ({round + 1})
+                </button>
+                <button
+                  type="button"
+                  disabled={!!busyAction}
+                  onClick={() => void patchSession({ show_results: true, is_open: false }, "publish")}
+                  className="min-h-12 rounded-xl border-2 border-amber-400 bg-amber-50 text-sm font-bold text-amber-800 disabled:opacity-50"
+                >
+                  Publicar podio y ranking
+                </button>
+              </div>
+            </section>
+
+            {liveResults.length > 0 && (
+              <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <h2 className="font-display text-lg font-bold text-gray-800">Ranking acumulado</h2>
+                <div className="mt-2">
+                  <VotingResults results={liveResults} reveal podium={session.show_results} />
+                </div>
+              </section>
+            )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {ARTIST_COLORS.map((color) => (
-              <button
-                key={color}
-                type="button"
-                aria-label={`Color ${color}`}
-                onClick={() => setNewColor(color)}
-                className={`h-8 w-8 rounded-full border-2 ${newColor === color ? "border-gray-900" : "border-white"}`}
-                style={{ backgroundColor: color }}
+        )}
+
+        {step === "show" && (
+          <div className="space-y-3">
+            <section className="rounded-2xl border border-indigo-200 bg-white p-4 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-500">Paso 2</p>
+              <h2 className="font-display text-xl font-black text-gray-900">Informacion del show</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Esto es lo que veran los participantes al entrar, antes de votar.
+              </p>
+              {configSaved && <p className="mt-2 text-sm font-bold text-green-600">{configSaved}</p>}
+
+              <label className="mt-4 block text-xs font-black uppercase tracking-wide text-gray-500">
+                Mensaje de bienvenida
+              </label>
+              <textarea
+                value={participantMessage}
+                onChange={(e) => {
+                  configTouchedRef.current = true;
+                  setParticipantMessage(e.target.value);
+                }}
+                rows={8}
+                className={`${fieldClass} mt-1 resize-y leading-relaxed`}
               />
-            ))}
-          </div>
-          <button
-            type="button"
-            disabled={!newName.trim() || !!busyAction}
-            onClick={() => void addArtist()}
-            className="rounded-xl bg-tava-neon-pink px-4 py-3 text-sm font-bold text-white disabled:opacity-40"
-          >
-            Agregar jugador
-          </button>
-        </div>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          {artists.map((artist) => (
-            <ArtistIdentityCard key={artist.id} artist={artist}>
-              <div className="grid gap-2">
-                <div className="flex flex-wrap gap-2">
-                  {ARTIST_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      aria-label={`Color ${color}`}
-                      onClick={() => void updateArtist(artist, { color })}
-                      className={`h-7 w-7 rounded-full border-2 ${
-                        artist.color === color ? "border-gray-900" : "border-white"
-                      }`}
-                      style={{ backgroundColor: color }}
+              {participantMessage.trim() && (
+                <div className="mt-3 rounded-2xl border border-indigo-100 bg-indigo-50 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">
+                    Asi lo vera el publico
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
+                    {participantMessage}
+                  </p>
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-lg font-bold text-gray-800">Juegos del dia</h2>
+                  <p className="text-xs text-gray-500">Nombre y descripcion para cada juego.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addDailyGame}
+                  className="min-h-11 shrink-0 rounded-xl bg-purple-50 px-3 text-sm font-bold text-tava-purple"
+                >
+                  + Juego
+                </button>
+              </div>
+
+              <div className="mt-3 space-y-3">
+                {dailyGames.length === 0 && (
+                  <p className="rounded-xl bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
+                    Todavia no hay juegos. Agrega los de esta noche.
+                  </p>
+                )}
+                {dailyGames.map((game, index) => (
+                  <div key={game.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-black uppercase text-gray-400">Juego {index + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeDailyGame(game.id)}
+                        className="min-h-8 px-2 text-xs font-bold text-red-500"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                    <input
+                      value={game.name}
+                      onChange={(e) => updateDailyGame(game.id, { name: e.target.value })}
+                      placeholder="Nombre del juego"
+                      className={fieldClass}
                     />
+                    <textarea
+                      value={game.description}
+                      onChange={(e) => updateDailyGame(game.id, { description: e.target.value })}
+                      rows={3}
+                      placeholder="Descripcion, reglas o dinamica"
+                      className={`${fieldClass} mt-2 resize-y`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {step === "jugadores" && (
+          <div className="space-y-3">
+            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-lg font-bold text-gray-800">Palabra de la ronda</h2>
+                  <p className="text-xs text-gray-500">Recibe objetos y sortea una palabra.</p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${
+                    session?.object_collection_open ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  {session?.object_collection_open ? "Abierto" : "Cerrado"}
+                </span>
+              </div>
+
+              {selectedObjects.length > 0 && (
+                <div className="mt-3 grid gap-2">
+                  {selectedObjects.map((objectName, index) => (
+                    <motion.div
+                      key={objectName}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.08 }}
+                      className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-center font-display text-lg font-black text-amber-900"
+                    >
+                      {objectName}
+                    </motion.div>
                   ))}
                 </div>
+              )}
+
+              <div className="mt-4 grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  disabled={!!busyAction}
+                  onClick={() => void patchSession({ action: "open_objects" }, "open-objects")}
+                  className="min-h-12 rounded-xl border-2 border-green-500 bg-green-50 text-sm font-bold text-green-700 disabled:opacity-50"
+                >
+                  Recibir objetos
+                </button>
+                <button
+                  type="button"
+                  disabled={!!busyAction}
+                  onClick={() => void patchSession({ action: "close_objects" }, "close-objects")}
+                  className="min-h-12 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-700 disabled:opacity-50"
+                >
+                  Cerrar recepcion
+                </button>
+                <button
+                  type="button"
+                  disabled={!!busyAction || summary.objectSubmissionCount === 0}
+                  onClick={() => void drawObjects()}
+                  className="min-h-12 rounded-xl bg-amber-500 text-sm font-bold text-white disabled:opacity-40"
+                >
+                  {selectedObjects.length > 0 ? "Cambiar palabra" : "Sortear palabra"}
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <h2 className="font-display text-lg font-bold text-gray-800">Jugadores / artistas</h2>
+              <div className="mt-3 grid gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3">
+                <input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Nombre del jugador"
+                  className={fieldClass}
+                  onKeyDown={(e) => e.key === "Enter" && void addArtist()}
+                />
                 <div className="grid gap-2 sm:grid-cols-2">
                   <select
-                    value={artist.avatar_gender || "male"}
-                    disabled={busyAction === artist.id}
-                    onChange={(e) => void updateArtist(artist, { avatar_gender: e.target.value as AvatarGender })}
-                    className="rounded-xl border border-gray-200 px-3 py-2 text-xs"
+                    value={newAvatarGender}
+                    onChange={(e) => setNewAvatarGender(e.target.value as AvatarGender)}
+                    className={fieldClass}
                   >
                     <option value="male">Muneco hombre</option>
                     <option value="female">Muneca mujer</option>
                   </select>
                   <select
-                    value={artist.tagline || ARTIST_TAGLINES[0]}
-                    disabled={busyAction === artist.id}
-                    onChange={(e) => void updateArtist(artist, { tagline: e.target.value })}
-                    className="rounded-xl border border-gray-200 px-3 py-2 text-xs"
+                    value={newTagline}
+                    onChange={(e) => setNewTagline(e.target.value)}
+                    className={fieldClass}
                   >
                     {ARTIST_TAGLINES.map((tagline) => (
                       <option key={tagline} value={tagline}>
@@ -489,98 +553,136 @@ export function VotingAdminPanel() {
                     ))}
                   </select>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  {ARTIST_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-label={`Color ${color}`}
+                      onClick={() => setNewColor(color)}
+                      className={`h-10 w-10 rounded-full border-2 ${newColor === color ? "border-gray-900" : "border-white"}`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
                 <button
                   type="button"
-                  onClick={() => void removeArtist(artist.id)}
-                  className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-500"
+                  disabled={!newName.trim() || !!busyAction}
+                  onClick={() => void addArtist()}
+                  className="min-h-12 rounded-xl bg-tava-neon-pink text-sm font-bold text-white disabled:opacity-40"
                 >
-                  Eliminar jugador
+                  Agregar jugador
                 </button>
               </div>
-            </ArtistIdentityCard>
-          ))}
-        </div>
-      </section>
 
-      {error && <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
-
-      <section className="mt-6 rounded-2xl border border-indigo-200 bg-white p-3 shadow-sm sm:p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="font-display text-lg font-bold text-gray-800">Configuracion de sala</h2>
-            <p className="text-xs text-gray-500">Mensaje y juegos del dia para participantes.</p>
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                {artists.map((artist) => (
+                  <ArtistIdentityCard key={artist.id} artist={artist} compact>
+                    <div className="grid gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        {ARTIST_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            aria-label={`Color ${color}`}
+                            onClick={() => void updateArtist(artist, { color })}
+                            className={`h-8 w-8 rounded-full border-2 ${
+                              artist.color === color ? "border-gray-900" : "border-white"
+                            }`}
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <select
+                          value={artist.avatar_gender || "male"}
+                          disabled={busyAction === artist.id}
+                          onChange={(e) => void updateArtist(artist, { avatar_gender: e.target.value as AvatarGender })}
+                          className="min-h-11 rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                        >
+                          <option value="male">Muneco hombre</option>
+                          <option value="female">Muneca mujer</option>
+                        </select>
+                        <select
+                          value={artist.tagline || ARTIST_TAGLINES[0]}
+                          disabled={busyAction === artist.id}
+                          onChange={(e) => void updateArtist(artist, { tagline: e.target.value })}
+                          className="min-h-11 rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                        >
+                          {ARTIST_TAGLINES.map((tagline) => (
+                            <option key={tagline} value={tagline}>
+                              {tagline}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void removeArtist(artist.id)}
+                        className="min-h-11 rounded-xl border border-red-200 text-xs font-bold text-red-500"
+                      >
+                        Eliminar jugador
+                      </button>
+                    </div>
+                  </ArtistIdentityCard>
+                ))}
+              </div>
+            </section>
           </div>
-          {configSaved && <span className="text-xs font-bold text-green-600">{configSaved}</span>}
-        </div>
+        )}
 
-        <label className="mt-4 block text-xs font-bold uppercase tracking-wide text-gray-500">
-          Mensaje para participantes
-        </label>
-        <textarea
-          value={participantMessage}
-          onChange={(e) => {
-            configTouchedRef.current = true;
-            setParticipantMessage(e.target.value);
-          }}
-          rows={6}
-          className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-        />
+        {error && <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
+      </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Juegos del dia</p>
+      <div className="fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-3 py-3 backdrop-blur sm:px-4">
+        {step === "sala" && (
           <button
             type="button"
-            onClick={addDailyGame}
-            className="rounded-lg bg-purple-50 px-3 py-1 text-xs font-bold text-tava-purple"
+            onClick={() => setStep("show")}
+            className="min-h-12 w-full rounded-xl bg-tava-purple text-sm font-black text-white"
           >
-            + Agregar juego
+            Siguiente: preparar show
           </button>
-        </div>
-
-        <div className="mt-2 space-y-3">
-          {dailyGames.map((game, index) => (
-            <div key={game.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-gray-400">Juego {index + 1}</span>
-                <button
-                  type="button"
-                  onClick={() => removeDailyGame(game.id)}
-                  className="text-xs font-bold text-red-500"
-                >
-                  Quitar
-                </button>
-              </div>
-              <input
-                value={game.name}
-                onChange={(e) => updateDailyGame(game.id, { name: e.target.value })}
-                placeholder="Nombre del juego"
-                className="min-h-[44px] w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-              />
-              <textarea
-                value={game.description}
-                onChange={(e) => updateDailyGame(game.id, { description: e.target.value })}
-                rows={2}
-                placeholder="Descripcion"
-                className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-              />
-            </div>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          disabled={!!busyAction}
-          onClick={() => void saveSessionConfig()}
-          className="mt-4 w-full min-h-[44px] rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white disabled:opacity-50"
-        >
-          {busyAction === "save-config" ? "Guardando..." : "Guardar configuracion"}
-        </button>
-      </section>
-
-      <h2 className="mt-6 font-display text-lg font-bold text-gray-800">Ranking acumulado</h2>
-      <div className="mt-2">
-        <VotingResults results={liveResults} reveal podium={session?.show_results} />
+        )}
+        {step === "show" && (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={!!busyAction}
+              onClick={() => void saveSessionConfig(false)}
+              className="min-h-12 rounded-xl border border-indigo-200 bg-indigo-50 text-sm font-black text-indigo-700 disabled:opacity-50"
+            >
+              {busyAction === "save-config" ? "Guardando..." : "Guardar"}
+            </button>
+            <button
+              type="button"
+              disabled={!!busyAction}
+              onClick={() => void saveSessionConfig(true)}
+              className="min-h-12 rounded-xl bg-tava-purple text-sm font-black text-white disabled:opacity-50"
+            >
+              Guardar y seguir
+            </button>
+          </div>
+        )}
+        {step === "jugadores" && (
+          <button
+            type="button"
+            onClick={() => setStep("sala")}
+            className="min-h-12 w-full rounded-xl border border-gray-200 bg-white text-sm font-black text-gray-700"
+          >
+            Volver a sala
+          </button>
+        )}
       </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-xl bg-gray-50 p-3">
+      <p className="text-[10px] font-bold uppercase text-gray-400">{label}</p>
+      <p className="font-display text-2xl font-black text-gray-800">{value}</p>
     </div>
   );
 }
