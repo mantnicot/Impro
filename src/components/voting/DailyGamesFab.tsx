@@ -1,31 +1,74 @@
 "use client";
 
-import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useMotionValue } from "framer-motion";
 import type { DailyGame } from "@/lib/voting/types";
 
 interface DailyGamesFabProps {
   games: DailyGame[];
 }
 
+const POS_KEY = "tava-games-fab-pos";
+
 export function DailyGamesFab({ games }: DailyGamesFabProps) {
   const [open, setOpen] = useState(false);
+  const [ready, setReady] = useState(false);
+  const dragging = useRef(false);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(POS_KEY);
+      if (saved) {
+        const pos = JSON.parse(saved) as { x?: number; y?: number };
+        x.set(pos.x ?? 0);
+        y.set(pos.y ?? 0);
+      }
+    } catch {
+      /* ignore */
+    }
+    setReady(true);
+  }, [x, y]);
 
   if (games.length === 0) return null;
 
   return (
     <>
-      <motion.button
-        type="button"
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setOpen(true)}
-        className="fixed right-3 top-[calc(3.25rem+env(safe-area-inset-top,0px))] z-40 flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-tava-purple to-tava-neon-pink text-lg text-white shadow-lg sm:bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:right-4 sm:top-auto sm:h-14 sm:w-14 sm:text-2xl"
-        aria-label="Ver juegos del dia"
-      >
-        🎮
-      </motion.button>
+      {ready && (
+        <motion.button
+          type="button"
+          drag
+          dragMomentum={false}
+          dragElastic={0.12}
+          dragConstraints={{
+            left: -window.innerWidth + 72,
+            right: 16,
+            top: -16,
+            bottom: window.innerHeight - 96,
+          }}
+          style={{ x, y }}
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          whileDrag={{ scale: 1.08, cursor: "grabbing" }}
+          onDragStart={() => {
+            dragging.current = true;
+          }}
+          onDragEnd={() => {
+            localStorage.setItem(POS_KEY, JSON.stringify({ x: x.get(), y: y.get() }));
+            window.setTimeout(() => {
+              dragging.current = false;
+            }, 80);
+          }}
+          onClick={() => {
+            if (!dragging.current) setOpen(true);
+          }}
+          className="fixed right-3 top-[calc(3.25rem+env(safe-area-inset-top,0px))] z-40 flex h-12 w-12 touch-none cursor-grab items-center justify-center rounded-full bg-gradient-to-br from-tava-purple to-tava-neon-pink text-xl text-white shadow-[0_8px_24px_rgba(124,58,237,0.45)] sm:right-4 sm:h-14 sm:w-14 sm:text-2xl"
+          aria-label="Ver juegos del dia. Arrastra para mover."
+        >
+          🎮
+        </motion.button>
+      )}
 
       <AnimatePresence>
         {open && (

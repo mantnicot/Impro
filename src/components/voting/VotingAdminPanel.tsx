@@ -12,6 +12,7 @@ import {
 import type { Artist, ArtistResult, DailyGame, VotingSession, VotingSummary } from "@/lib/voting/types";
 import { ArtistIdentityCard } from "./ArtistIdentityCard";
 import { LiveScoreboard } from "./LiveScoreboard";
+import { ShowWelcomeMessage } from "./ShowWelcomeMessage";
 import { VotingResults } from "./VotingResults";
 import { WordRoulette } from "./WordRoulette";
 
@@ -397,13 +398,11 @@ export function VotingAdminPanel() {
               />
 
               {participantMessage.trim() && (
-                <div className="mt-3 rounded-2xl border border-indigo-100 bg-indigo-50 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">
-                    Asi lo vera el publico
-                  </p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
-                    {participantMessage}
-                  </p>
+                <div className="mt-3 rounded-2xl border border-fuchsia-200/80 bg-gradient-to-br from-violet-50 via-white to-rose-50 p-4">
+                  <p className="font-show text-sm font-semibold text-tava-purple">Asi lo vera el publico</p>
+                  <div className="mt-3">
+                    <ShowWelcomeMessage text={participantMessage} />
+                  </div>
                 </div>
               )}
             </section>

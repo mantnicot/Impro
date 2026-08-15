@@ -5,6 +5,7 @@
 :root {
   --font-display: Georgia, "Times New Roman", serif;
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-show: "Fraunces", Georgia, serif;
 }
 
 * {

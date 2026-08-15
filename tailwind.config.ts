@@ -28,6 +28,7 @@ const config: Config = {
       fontFamily: {
         display: ["var(--font-display)", "Georgia", "serif"],
         body: ["var(--font-body)", "system-ui", "sans-serif"],
+        show: ["var(--font-show)", "Georgia", "serif"],
       },
       backgroundImage: {
         "theater-gradient":

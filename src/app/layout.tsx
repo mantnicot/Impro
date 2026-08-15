@@ -1,7 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { Fraunces } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { TavaWatermark } from "@/components/TavaWatermark";
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-show",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "TAVA Object Roulette",
@@ -27,7 +34,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="es" className={fraunces.variable}>
       <body className="font-body antialiased">
         <TavaWatermark />
         <Providers>{children}</Providers>

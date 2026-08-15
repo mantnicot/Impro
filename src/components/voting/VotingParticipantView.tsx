@@ -7,6 +7,7 @@ import type { Artist, ArtistResult, VotingSession } from "@/lib/voting/types";
 import { ArtistIdentityCard } from "./ArtistIdentityCard";
 import { DailyGamesFab } from "./DailyGamesFab";
 import { LiveScoreboard } from "./LiveScoreboard";
+import { ShowWelcomeMessage } from "./ShowWelcomeMessage";
 import { VotingResults } from "./VotingResults";
 import { WordRoulette } from "./WordRoulette";
 
@@ -55,16 +56,17 @@ function ParticipantLayout({
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
         {hasMessage && (
-          <section className="mx-3 mt-2 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 shadow-sm sm:mx-4 sm:mt-3">
+          <section className="relative mx-3 mt-2 overflow-hidden rounded-2xl border border-fuchsia-200/80 bg-gradient-to-br from-violet-50 via-white to-rose-50 shadow-sm sm:mx-4 sm:mt-3">
+            <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-tava-purple/10 blur-2xl" />
             <button
               type="button"
               onClick={() => setMessageOpen((open) => !open)}
-              className="flex w-full items-center justify-between px-3 py-2.5 text-left sm:px-4"
+              className="relative flex w-full items-center justify-between px-3 py-2.5 text-left sm:px-4"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">
-                Mensaje del admin
+              <p className="font-show text-sm font-semibold tracking-wide text-tava-purple">
+                Mensaje del show
               </p>
-              <span className="text-xs font-bold text-indigo-500">{messageOpen ? "Ocultar" : "Ver"}</span>
+              <span className="text-xs font-bold text-fuchsia-600">{messageOpen ? "Ocultar" : "Ver"}</span>
             </button>
             <AnimatePresence initial={false}>
               {messageOpen && (
@@ -74,9 +76,9 @@ function ParticipantLayout({
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <p className="whitespace-pre-wrap px-3 pb-3 text-sm leading-relaxed text-gray-800 sm:px-4 sm:pb-4">
-                    {session?.participant_message}
-                  </p>
+                  <div className="relative px-3 pb-4 sm:px-4">
+                    <ShowWelcomeMessage text={session?.participant_message ?? ""} />
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
