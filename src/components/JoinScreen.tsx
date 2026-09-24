@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { TavaLogo } from "@/components/TavaLogo";
+import { ShowBrandTitle } from "@/components/ShowBrandTitle";
 import {
   setAdminPin,
   setRole,
@@ -92,31 +92,31 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
   };
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-theater-gradient px-4">
-      <TavaLogo size="lg" />
+    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-theater-gradient px-4">
+      <div className="pointer-events-none absolute inset-0 bg-halftone-dots bg-halftone opacity-40" />
+      <ShowBrandTitle size="lg" light className="relative z-10" />
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mt-8 w-full max-w-md rounded-3xl border border-white/60 bg-white/95 p-6 shadow-xl"
+        className="relative z-10 mt-8 w-full max-w-md rounded-3xl border-4 border-tava-yellow bg-white p-6 shadow-[8px_8px_0_rgba(11,18,32,0.35)]"
       >
         {mode === "pick" && (
           <>
-            <h1 className="text-center font-display text-2xl font-black text-gray-800">TAVA Impro</h1>
-            <p className="mt-1 text-center text-sm text-gray-500">¿Cómo entras hoy?</p>
+            <p className="text-center font-hand text-2xl text-tava-blue">¿Cómo entras hoy?</p>
             <div className="mt-6 grid gap-3">
               <button
                 type="button"
                 onClick={() => setMode("admin")}
-                className="rounded-2xl border-2 border-tava-purple bg-gradient-to-r from-tava-purple to-tava-neon-pink py-4 font-display font-bold text-white shadow-lg"
+                className="rounded-2xl border-4 border-tava-yellow bg-tava-red py-4 font-display text-xl tracking-wide text-white shadow-[4px_4px_0_rgba(11,18,32,0.3)]"
               >
-                🎭 Soy administrador
+                Soy administrador
               </button>
               <button
                 type="button"
                 onClick={() => setMode("participant")}
-                className="rounded-2xl border-2 border-gray-200 bg-white py-4 font-display font-bold text-gray-800 shadow-sm hover:border-tava-purple"
+                className="rounded-2xl border-4 border-tava-blue bg-tava-yellow py-4 font-display text-xl tracking-wide text-tava-blue shadow-[4px_4px_0_rgba(11,18,32,0.2)]"
               >
-                🗳️ Soy participante (votar)
+                Soy participante
               </button>
             </div>
           </>
@@ -140,7 +140,7 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
               type="button"
               disabled={loading || roomCode.length < 4}
               onClick={() => void joinParticipant()}
-              className="mt-4 w-full rounded-xl bg-tava-purple py-3 font-bold text-white disabled:opacity-50"
+              className="mt-4 w-full rounded-xl bg-tava-red py-3 font-display text-lg tracking-wide text-white disabled:opacity-50"
             >
               {loading ? "Entrando…" : "Entrar"}
             </button>
@@ -182,7 +182,7 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
               type="button"
               disabled={loading || masterCode.length < 4}
               onClick={() => void (roomCode.trim() ? authAdmin() : createAdmin())}
-              className="mt-4 w-full rounded-xl bg-tava-purple py-3 font-bold text-white disabled:opacity-50"
+              className="mt-4 w-full rounded-xl bg-tava-red py-3 font-display text-lg tracking-wide text-white disabled:opacity-50"
             >
               {loading ? "…" : roomCode.trim() ? "Entrar como admin" : "Crear nueva sesión"}
             </button>

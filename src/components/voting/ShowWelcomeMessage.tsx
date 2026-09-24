@@ -19,17 +19,17 @@ export function ShowWelcomeMessage({ text }: { text: string }) {
   const title = lines.find((line) => line.type === "text");
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {lines.map((line) => {
         if (line.type === "space") return <div key={line.key} className="h-1" />;
 
         if (line.type === "item") {
           return (
             <div key={line.key} className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-tava-purple to-tava-neon-pink font-display text-xs font-black text-white shadow-sm">
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-tava-red font-display text-sm text-white shadow-[2px_2px_0_rgba(11,18,32,0.25)]">
                 {line.number}
               </span>
-              <p className="font-show pt-0.5 text-[1.05rem] leading-snug text-gray-800">{line.text}</p>
+              <p className="font-hand pt-0.5 text-xl leading-snug text-tava-blue">{line.text}</p>
             </div>
           );
         }
@@ -40,8 +40,8 @@ export function ShowWelcomeMessage({ text }: { text: string }) {
             key={line.key}
             className={
               isTitle
-                ? "font-show bg-gradient-to-r from-tava-purple via-fuchsia-600 to-tava-neon-pink bg-clip-text text-2xl font-bold leading-tight text-transparent sm:text-3xl"
-                : "font-show text-base leading-relaxed text-gray-700"
+                ? "font-display text-3xl leading-none tracking-wide text-tava-blue sm:text-4xl"
+                : "font-hand text-xl leading-snug text-gray-700"
             }
           >
             {line.text}

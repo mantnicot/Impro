@@ -43,10 +43,8 @@ export function TavaLogo({ size = "md", logoUrl, animated = false }: TavaLogoPro
   }
 
   return (
-    <Wrapper {...wrapperProps} className={`font-display font-bold ${s.text}`}>
-      <span className="bg-gradient-to-r from-tava-purple via-tava-purple-light to-tava-neon-pink bg-clip-text text-transparent">
-        TAVA
-      </span>
+    <Wrapper {...wrapperProps} className={`font-display leading-none tracking-wide ${s.text}`}>
+      <span className="text-tava-yellow text-shadow-poster">#TAVA</span>
     </Wrapper>
   );
 }

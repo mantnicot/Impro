@@ -1,18 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces } from "next/font/google";
+import { Bebas_Neue, Caveat } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { TavaWatermark } from "@/components/TavaWatermark";
 
-const fraunces = Fraunces({
+const bebas = Bebas_Neue({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+const caveat = Caveat({
   subsets: ["latin"],
   variable: "--font-show",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "TAVA Object Roulette",
-  description: "Ruleta de objetos teatrales para improvisación — Grupo TAVA",
+  title: "#TAVA en el acto",
+  description: "Improvisación teatral — TAVA EN EL ACTO",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -25,7 +32,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#7C3AED",
+  themeColor: "#1A3A82",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -34,7 +41,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={fraunces.variable}>
+    <html lang="es" className={`${bebas.variable} ${caveat.variable}`}>
       <body className="font-body antialiased">
         <TavaWatermark />
         <Providers>{children}</Providers>

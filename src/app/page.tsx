@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { TheaterLights } from "@/components/TheaterLights";
-import { TavaLogo } from "@/components/TavaLogo";
+import { ShowBrandTitle } from "@/components/ShowBrandTitle";
 import { GameScreen } from "@/components/GameScreen";
 import { QuickMenu } from "@/components/QuickMenu";
 import { ListManager } from "@/components/ListManager";
@@ -44,7 +44,7 @@ interface ActiveGame {
 const MODULE_COPY: Record<AppModule, { title: string; subtitle: string }> = {
   words: {
     title: "Palabras aleatorias",
-    subtitle: "Ruleta de objetos · Grupo TAVA",
+    subtitle: "#TAVA en el acto · Ruleta de objetos",
   },
   scenes: {
     title: "Crear escenas",
@@ -56,7 +56,7 @@ const MODULE_COPY: Record<AppModule, { title: string; subtitle: string }> = {
   },
   voting: {
     title: "Votación de artistas",
-    subtitle: "Administra la sala y publica resultados",
+    subtitle: "#TAVA en el acto · Sala y resultados",
   },
 };
 
@@ -119,7 +119,7 @@ export default function HomePage() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-          className="h-16 w-16 rounded-full border-4 border-tava-purple/20 border-t-tava-purple"
+          className="h-16 w-16 rounded-full border-4 border-tava-yellow/30 border-t-tava-yellow"
         />
       </div>
     );
@@ -134,17 +134,14 @@ export default function HomePage() {
       <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-theater-gradient">
         <TheaterLights />
         <header className="relative z-10 flex shrink-0 items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <TavaLogo size="sm" logoUrl={settings.logoUrl} />
-            <h1 className="truncate font-display text-base font-black text-gray-800 sm:text-xl">Votación TAVA</h1>
-          </div>
+          <ShowBrandTitle size="sm" light className="items-start" />
           <button
             type="button"
             onClick={() => {
               clearSession();
               setRoleState(null);
             }}
-            className="shrink-0 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-500"
+            className="shrink-0 rounded-xl border-2 border-tava-yellow bg-tava-yellow px-3 py-1.5 text-xs font-black text-tava-blue"
           >
             Salir
           </button>
@@ -214,7 +211,7 @@ export default function HomePage() {
       <TheaterLights />
 
       <header className="relative z-10 flex shrink-0 items-center justify-between px-4 py-3 sm:px-6">
-        <TavaLogo size="md" logoUrl={settings.logoUrl} />
+        <ShowBrandTitle size="sm" light className="items-start" />
         <div className="flex gap-2">
           <button
             type="button"
@@ -222,14 +219,14 @@ export default function HomePage() {
               clearSession();
               setRoleState(null);
             }}
-            className="rounded-xl border border-gray-200 bg-white px-2 py-2 text-xs text-gray-500"
+            className="rounded-xl border-2 border-white/30 bg-white/10 px-2 py-2 text-xs font-bold text-white"
           >
             Salir
           </button>
           <button
             type="button"
             onClick={() => setPanel("menu")}
-            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 shadow-sm transition hover:border-tava-purple hover:text-tava-purple"
+            className="rounded-xl border-2 border-tava-yellow bg-tava-yellow px-3 py-2 text-sm font-black text-tava-blue shadow-sm"
           >
             ☰ Menú
           </button>
@@ -243,21 +240,10 @@ export default function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           className={`shrink-0 px-4 pb-2 text-center sm:px-6 ${module === "voting" ? "hidden sm:block" : ""}`}
         >
-          <h1 className="font-display text-2xl font-black text-gray-800 sm:text-3xl">
-            {module === "words" ? (
-              <>
-                Object{" "}
-                <span className="bg-gradient-to-r from-tava-purple to-tava-neon-pink bg-clip-text text-transparent">
-                  Roulette
-                </span>
-              </>
-            ) : (
-              <span className="bg-gradient-to-r from-tava-purple to-tava-neon-pink bg-clip-text text-transparent">
-                {title}
-              </span>
-            )}
+          <h1 className="font-display text-3xl tracking-wide text-tava-yellow sm:text-4xl">
+            {module === "words" ? "OBJECT ROULETTE" : title.toUpperCase()}
           </h1>
-          <p className="text-xs text-gray-500 sm:text-sm">{subtitle}</p>
+          <p className="font-hand text-lg text-white/80 sm:text-xl">{subtitle}</p>
         </motion.div>
 
         {module === "words" && (
@@ -267,22 +253,22 @@ export default function HomePage() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={startRandom}
-                className="group relative overflow-hidden rounded-2xl border-2 border-tava-purple/30 bg-white p-6 text-left shadow-lg transition hover:border-tava-purple"
+                className="group relative overflow-hidden rounded-2xl border-4 border-tava-yellow bg-white p-6 text-left shadow-[6px_6px_0_rgba(11,18,32,0.35)]"
               >
                 <div className="absolute -right-4 -top-4 text-6xl opacity-10">🎲</div>
-                <h2 className="font-display text-2xl font-bold text-tava-purple">Modo Aleatorio</h2>
-                <p className="mt-1 text-sm text-gray-500">Palabras con foto del objeto</p>
+                <h2 className="font-display text-3xl tracking-wide text-tava-blue">MODO ALEATORIO</h2>
+                <p className="mt-1 font-hand text-lg text-gray-600">Palabras con foto del objeto</p>
               </motion.button>
 
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setPanel("lists")}
-                className="group relative overflow-hidden rounded-2xl border-2 border-tava-neon-pink/30 bg-white p-6 text-left shadow-lg transition hover:border-tava-neon-pink"
+                className="group relative overflow-hidden rounded-2xl border-4 border-white bg-tava-red p-6 text-left shadow-[6px_6px_0_rgba(11,18,32,0.35)]"
               >
                 <div className="absolute -right-4 -top-4 text-6xl opacity-10">📋</div>
-                <h2 className="font-display text-2xl font-bold text-gray-800">Listas Personalizadas</h2>
-                <p className="mt-1 text-sm text-gray-500">
+                <h2 className="font-display text-3xl tracking-wide text-white">LISTAS</h2>
+                <p className="mt-1 font-hand text-lg text-yellow-100">
                   {customLists.length} lista{customLists.length !== 1 ? "s" : ""}
                 </p>
               </motion.button>
@@ -299,8 +285,8 @@ export default function HomePage() {
               )}
             </div>
 
-            <p className="mt-6 text-xs text-gray-400">
-              Arrastra la tarjeta o usa los botones del dock · → Siguiente · ← Anterior · ★ Favorito
+            <p className="mt-6 font-hand text-lg text-tava-yellow/90">
+              Arrastra la tarjeta o usa los botones · → Siguiente · ← Anterior · ★ Favorito
             </p>
           </div>
         )}

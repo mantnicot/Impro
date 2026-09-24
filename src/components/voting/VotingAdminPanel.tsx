@@ -398,8 +398,8 @@ export function VotingAdminPanel() {
               />
 
               {participantMessage.trim() && (
-                <div className="mt-3 rounded-2xl border border-fuchsia-200/80 bg-gradient-to-br from-violet-50 via-white to-rose-50 p-4">
-                  <p className="font-show text-sm font-semibold text-tava-purple">Asi lo vera el publico</p>
+                <div className="mt-3 rounded-2xl border-4 border-tava-yellow bg-white p-4">
+                  <p className="font-hand text-lg text-tava-red">Asi lo vera el publico</p>
                   <div className="mt-3">
                     <ShowWelcomeMessage text={participantMessage} />
                   </div>

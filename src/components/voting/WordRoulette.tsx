@@ -10,16 +10,28 @@ interface WordRouletteProps {
   onComplete?: () => void;
 }
 
+const SEGMENTS = ["#D61A21", "#FFC600", "#1A3A82", "#FFC600", "#D61A21", "#1A3A82"];
+
 export function WordRoulette({ items, winner, open, onComplete }: WordRouletteProps) {
   const pool = useMemo(() => {
     const unique = [...new Set(items.filter(Boolean))];
     if (unique.length === 0) return winner ? [winner] : [];
     if (!unique.includes(winner) && winner) unique.push(winner);
+    // Rellenar para que la ruleta se vea siempre colorida
+    while (unique.length < 6) {
+      unique.push(...unique.slice(0, Math.min(unique.length, 6 - unique.length)));
+    }
     return unique;
   }, [items, winner]);
 
   const [displayWord, setDisplayWord] = useState(winner);
   const [phase, setPhase] = useState<"spinning" | "winner">("spinning");
+  const [flashColor, setFlashColor] = useState(SEGMENTS[0]!);
+
+  const wheelBackground = useMemo(() => {
+    const slice = 100 / SEGMENTS.length;
+    return `conic-gradient(${SEGMENTS.map((color, i) => `${color} ${i * slice}% ${(i + 1) * slice}%`).join(", ")})`;
+  }, []);
 
   useEffect(() => {
     if (!open || pool.length === 0) return;
@@ -28,19 +40,21 @@ export function WordRoulette({ items, winner, open, onComplete }: WordRoulettePr
     setDisplayWord(pool[0] ?? winner);
 
     let tick = 0;
-    const maxTicks = Math.max(18, pool.length * 4);
+    const maxTicks = Math.min(14, Math.max(8, pool.length + 4));
     const interval = window.setInterval(() => {
       tick += 1;
       const index = tick % pool.length;
       setDisplayWord(pool[index]!);
+      setFlashColor(SEGMENTS[tick % SEGMENTS.length]!);
 
       if (tick >= maxTicks) {
         window.clearInterval(interval);
         setDisplayWord(winner);
+        setFlashColor("#FFC600");
         setPhase("winner");
-        window.setTimeout(() => onComplete?.(), 1800);
+        window.setTimeout(() => onComplete?.(), 700);
       }
-    }, 90 + tick * 6);
+    }, 45);
 
     return () => window.clearInterval(interval);
   }, [open, pool, winner, onComplete]);
@@ -53,39 +67,40 @@ export function WordRoulette({ items, winner, open, onComplete }: WordRoulettePr
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"
+        className="fixed inset-0 z-[80] flex items-center justify-center bg-tava-blue/80 px-4 backdrop-blur-sm"
       >
         <motion.div
-          initial={{ scale: 0.9, y: 20 }}
+          initial={{ scale: 0.86, y: 24 }}
           animate={{ scale: 1, y: 0 }}
-          className="w-full max-w-md rounded-3xl border border-amber-300/60 bg-gradient-to-b from-gray-900 via-purple-950 to-gray-900 p-6 text-white shadow-2xl"
+          className="w-full max-w-md overflow-hidden rounded-3xl border-4 border-tava-yellow bg-tava-blue p-5 text-white shadow-[10px_10px_0_rgba(11,18,32,0.45)]"
         >
-          <p className="text-center text-xs font-black uppercase tracking-[0.35em] text-amber-300">
-            Ruleta TAVA
-          </p>
+          <div className="text-center">
+            <p className="font-display text-3xl tracking-wide text-tava-yellow">RULETA</p>
+            <p className="-mt-1 font-hand text-xl text-white">#TAVA en el acto</p>
+          </div>
 
-          <div className="relative mx-auto mt-6 h-56 w-56">
+          <div className="relative mx-auto mt-5 h-64 w-64">
             <motion.div
-              animate={{ rotate: phase === "spinning" ? 360 : 0 }}
+              animate={{ rotate: phase === "spinning" ? 720 : 18 }}
               transition={
                 phase === "spinning"
-                  ? { repeat: Infinity, duration: 0.8, ease: "linear" }
-                  : { duration: 0.6, type: "spring" }
+                  ? { repeat: Infinity, duration: 0.35, ease: "linear" }
+                  : { type: "spring", stiffness: 180, damping: 16 }
               }
-              className="absolute inset-0 rounded-full border-[10px] border-amber-400/80 bg-gradient-to-br from-tava-purple to-tava-neon-pink shadow-[0_0_40px_rgba(251,191,36,0.35)]"
+              className="absolute inset-0 rounded-full border-8 border-white shadow-[0_0_40px_rgba(255,198,0,0.55)]"
+              style={{ background: wheelBackground }}
             />
-            <div className="absolute inset-4 rounded-full border border-white/20 bg-black/40" />
+            <div className="absolute inset-8 rounded-full border-4 border-white/80 bg-tava-blue/90 shadow-inner" />
             <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1">
-              <div className="h-0 w-0 border-x-[12px] border-b-[22px] border-x-transparent border-b-amber-300 drop-shadow-lg" />
+              <div className="h-0 w-0 border-x-[14px] border-b-[26px] border-x-transparent border-b-tava-yellow drop-shadow-lg" />
             </div>
-            <div className="absolute inset-0 flex items-center justify-center p-8 text-center">
+            <div className="absolute inset-0 flex items-center justify-center p-10 text-center">
               <motion.p
-                key={displayWord}
-                initial={{ opacity: 0, scale: 0.92 }}
-                animate={{ opacity: 1, scale: phase === "winner" ? 1.08 : 1 }}
-                className={`font-display text-2xl font-black leading-tight ${
-                  phase === "winner" ? "text-amber-300" : "text-white"
-                }`}
+                key={displayWord + phase}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: phase === "winner" ? 1.12 : 1 }}
+                className="font-display text-3xl leading-none tracking-wide"
+                style={{ color: phase === "winner" ? "#FFC600" : flashColor }}
               >
                 {displayWord}
               </motion.p>
@@ -93,10 +108,10 @@ export function WordRoulette({ items, winner, open, onComplete }: WordRoulettePr
           </div>
 
           <motion.p
-            animate={{ opacity: phase === "winner" ? 1 : 0.5 }}
-            className="mt-5 text-center text-sm text-purple-100"
+            animate={{ opacity: 1 }}
+            className="mt-4 text-center font-hand text-2xl text-tava-yellow"
           >
-            {phase === "spinning" ? "Girando..." : "Palabra elegida"}
+            {phase === "spinning" ? "¡Girando a toda!" : "¡Palabra elegida!"}
           </motion.p>
         </motion.div>
       </motion.div>

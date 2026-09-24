@@ -3,9 +3,13 @@
 @tailwind utilities;
 
 :root {
-  --font-display: Georgia, "Times New Roman", serif;
+  --font-display: "Bebas Neue", Impact, "Arial Black", sans-serif;
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-show: "Fraunces", Georgia, serif;
+  --font-show: "Caveat", cursive;
+  --font-hand: var(--font-show);
+  --tava-blue: #1a3a82;
+  --tava-yellow: #ffc600;
+  --tava-red: #d61a21;
 }
 
 * {
@@ -28,6 +32,12 @@ body {
 }
 
 body {
-  background: #ffffff;
-  color: #1f2937;
+  background: #0f2558;
+  color: #0b1220;
+}
+
+@layer utilities {
+  .text-shadow-poster {
+    text-shadow: 2px 2px 0 rgba(11, 18, 32, 0.35);
+  }
 }

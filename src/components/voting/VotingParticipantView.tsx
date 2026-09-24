@@ -56,17 +56,17 @@ function ParticipantLayout({
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
         {hasMessage && (
-          <section className="relative mx-3 mt-2 overflow-hidden rounded-2xl border border-fuchsia-200/80 bg-gradient-to-br from-violet-50 via-white to-rose-50 shadow-sm sm:mx-4 sm:mt-3">
-            <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-tava-purple/10 blur-2xl" />
+          <section className="relative mx-3 mt-2 overflow-hidden rounded-2xl border-4 border-tava-yellow bg-white shadow-[4px_4px_0_rgba(11,18,32,0.25)] sm:mx-4 sm:mt-3">
+            <div className="pointer-events-none absolute inset-0 bg-halftone-dots bg-halftone opacity-30" />
             <button
               type="button"
               onClick={() => setMessageOpen((open) => !open)}
-              className="relative flex w-full items-center justify-between px-3 py-2.5 text-left sm:px-4"
+              className="relative flex w-full items-center justify-between bg-tava-blue px-3 py-2.5 text-left sm:px-4"
             >
-              <p className="font-show text-sm font-semibold tracking-wide text-tava-purple">
-                Mensaje del show
-              </p>
-              <span className="text-xs font-bold text-fuchsia-600">{messageOpen ? "Ocultar" : "Ver"}</span>
+              <p className="font-hand text-lg text-tava-yellow">Mensaje del show</p>
+              <span className="rounded-full bg-tava-yellow px-2 py-0.5 text-xs font-black text-tava-blue">
+                {messageOpen ? "Ocultar" : "Ver"}
+              </span>
             </button>
             <AnimatePresence initial={false}>
               {messageOpen && (
@@ -76,7 +76,7 @@ function ParticipantLayout({
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="relative px-3 pb-4 sm:px-4">
+                  <div className="relative px-3 py-4 sm:px-4">
                     <ShowWelcomeMessage text={session?.participant_message ?? ""} />
                   </div>
                 </motion.div>
