@@ -110,6 +110,36 @@ function drawObjects(objects: string[], count = 1): string[] {
 
 export async function GET(request: NextRequest) {
   try {
+    const listAll = request.nextUrl.searchParams.get("list") === "true";
+    if (listAll) {
+      const pin = request.headers.get("x-admin-pin");
+      const auth = requireMasterAdmin(pin);
+      if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 403 });
+
+      const db = getSupabaseAdmin();
+      const { data, error } = await db
+        .from("voting_sessions")
+        .select(
+          "id, code, title, is_open, show_results, current_round, object_collection_open, created_at"
+        )
+        .order("created_at", { ascending: false });
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+      const sessions = (data ?? []).map((row) => ({
+        id: row.id as string,
+        code: row.code as string,
+        title: row.title as string,
+        is_open: Boolean(row.is_open),
+        show_results: Boolean(row.show_results),
+        current_round: Number(row.current_round ?? 1),
+        object_collection_open: Boolean(row.object_collection_open),
+        created_at: row.created_at as string,
+      }));
+
+      return NextResponse.json({ sessions, count: sessions.length });
+    }
+
     const code = request.nextUrl.searchParams.get("code");
     const voterId = request.nextUrl.searchParams.get("voterId");
     if (!code) {
@@ -393,16 +423,34 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const pin = request.headers.get("x-admin-pin");
-    const code = request.headers.get("x-session-code");
     const auth = requireMasterAdmin(pin);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 403 });
 
-    const session = await loadSessionByCode(code ?? "");
-    if (!session) return NextResponse.json({ error: "Sesion no encontrada" }, { status: 404 });
+    const deleteAll = request.nextUrl.searchParams.get("all") === "true";
+    const targetId = request.nextUrl.searchParams.get("id");
+    const targetCode =
+      request.nextUrl.searchParams.get("code") ?? request.headers.get("x-session-code");
 
     const db = getSupabaseAdmin();
-    await db.from("voting_sessions").delete().eq("id", session.id);
-    return NextResponse.json({ ok: true });
+
+    if (deleteAll) {
+      const { error } = await db.from("voting_sessions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, deleted: "all" });
+    }
+
+    if (targetId) {
+      const { error } = await db.from("voting_sessions").delete().eq("id", targetId);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, deletedId: targetId });
+    }
+
+    const session = await loadSessionByCode(targetCode ?? "");
+    if (!session) return NextResponse.json({ error: "Sesion no encontrada" }, { status: 404 });
+
+    const { error } = await db.from("voting_sessions").delete().eq("id", session.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, deletedCode: session.code });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

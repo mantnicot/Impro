@@ -1,0 +1,15 @@
+-- Futuro: conteo de victorias por jugador (nombre normalizado)
+-- Aún no se usa en la app; reservado para ranking histórico entre shows.
+--
+-- CREATE TABLE IF NOT EXISTS player_wins (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   player_name TEXT NOT NULL,
+--   player_name_key TEXT NOT NULL,
+--   wins INT NOT NULL DEFAULT 0,
+--   last_win_at TIMESTAMPTZ,
+--   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+--   UNIQUE (player_name_key)
+-- );
+--
+-- CREATE INDEX IF NOT EXISTS idx_player_wins_wins ON player_wins(wins DESC);
+-- ALTER TABLE player_wins DISABLE ROW LEVEL SECURITY;
