@@ -48,6 +48,7 @@ function ParticipantLayout({
         items={rouletteItems}
         winner={rouletteWinner}
         open={rouletteOpen}
+        label={session?.submission_label || "Propuesta"}
         onComplete={onRouletteComplete}
       />
       <DailyGamesFab games={session?.daily_games ?? []} />
@@ -413,7 +414,7 @@ export function VotingParticipantView() {
       }
       setObjectInput("");
       await refresh();
-      setSaved("Objeto enviado");
+      setSaved("Enviado");
       setTimeout(() => setSaved(""), 2000);
     } finally {
       setSavingObject(false);
@@ -518,7 +519,9 @@ export function VotingParticipantView() {
           )}
         </section>
 
-        {selectedObjects.length > 0 && <SelectedObjects objects={selectedObjects} />}
+        {selectedObjects.length > 0 && (
+          <SelectedObjects objects={selectedObjects} label={session?.submission_label || "Propuesta"} />
+        )}
 
         {artists.length === 0 ? (
           <p className="mt-6 text-center text-sm text-gray-500">El administrador aun no ha agregado jugadores.</p>
@@ -572,33 +575,40 @@ export function VotingParticipantView() {
       rouletteWinner={rouletteWinner}
       onRouletteComplete={handleRouletteComplete}
     >
-      {savingObject && <SavingOverlay text="Enviando objeto" />}
+      {savingObject && <SavingOverlay text="Enviando..." />}
 
       <section className="rounded-2xl border border-gray-200 bg-white p-4 text-center shadow-sm sm:rounded-3xl sm:p-5">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 sm:text-xs sm:tracking-[0.25em]">
           Sala {code}
         </p>
         <h2 className="mt-1 font-display text-xl font-black text-gray-900 sm:text-2xl">
-          {session?.object_collection_open ? "Proponer objetos" : "Esperando al admin"}
+          {session?.object_collection_open
+            ? session.submission_label || "Propuesta"
+            : "Esperando al admin"}
         </h2>
         <p className="mt-2 text-sm text-gray-500">
           {session?.object_collection_open
-            ? "Envia objetos claros para que el sistema sortee una palabra."
-            : "Cuando el admin abra votacion, esta pantalla cambiara sola."}
+            ? session.submission_prompt || "Escribe tu propuesta para el sorteo."
+            : "Cuando el admin abra la recepcion o la votacion, esta pantalla cambiara sola."}
         </p>
       </section>
 
-      {selectedObjects.length > 0 && <SelectedObjects objects={selectedObjects} />}
+      {selectedObjects.length > 0 && (
+        <SelectedObjects objects={selectedObjects} label={session?.submission_label || "Propuesta"} />
+      )}
 
       {session?.object_collection_open && (
         <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:mt-5 sm:p-4">
+          <p className="mb-2 text-center text-xs font-bold text-tava-purple">
+            {session.submission_prompt || "Escribe tu propuesta"}
+          </p>
           <form onSubmit={submitObject} className="flex flex-col gap-2 sm:flex-row">
             <input
               value={objectInput}
               onChange={(e) => setObjectInput(e.target.value)}
               disabled={savingObject}
-              maxLength={48}
-              placeholder="Ej: paraguas, radio, maleta..."
+              maxLength={120}
+              placeholder={session.submission_prompt || "Escribe aqui..."}
               className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm disabled:bg-gray-50"
             />
             <button
@@ -632,7 +642,7 @@ export function VotingParticipantView() {
   );
 }
 
-function SelectedObjects({ objects }: { objects: string[] }) {
+function SelectedObjects({ objects, label }: { objects: string[]; label: string }) {
   return (
     <motion.section
       initial={{ opacity: 0, y: 10 }}
@@ -640,7 +650,7 @@ function SelectedObjects({ objects }: { objects: string[] }) {
       className="mt-4 rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 to-pink-50 p-3 shadow-sm sm:mt-5 sm:rounded-3xl sm:p-4"
     >
       <p className="text-center text-[10px] font-bold uppercase tracking-widest text-amber-700 sm:text-xs">
-        {objects.length === 1 ? "Palabra sorteada" : "Objetos sorteados"}
+        {label} sorteado
       </p>
       <div className="mt-2 grid gap-2 sm:mt-3">
         {objects.map((objectName, index) => (
@@ -649,7 +659,7 @@ function SelectedObjects({ objects }: { objects: string[] }) {
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: index * 0.12 }}
-            className="rounded-2xl bg-white px-4 py-3 text-center font-display text-lg font-black text-tava-purple shadow-sm sm:text-xl"
+            className="rounded-2xl bg-white px-4 py-3 text-center font-display text-lg font-black leading-snug text-tava-purple shadow-sm sm:text-xl"
           >
             {objectName}
           </motion.div>

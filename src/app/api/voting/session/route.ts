@@ -8,6 +8,12 @@ import {
   DEFAULT_PARTICIPANT_MESSAGE,
   resolveParticipantMessage,
 } from "@/lib/voting/default-participant-message";
+import {
+  DEFAULT_SUBMISSION_LABEL,
+  DEFAULT_SUBMISSION_PROMPT,
+  resolveSubmissionLabel,
+  resolveSubmissionPrompt,
+} from "@/lib/voting/submission-prompt";
 import type {
   Artist,
   DailyGame,
@@ -29,6 +35,8 @@ function sessionSelect() {
     "current_round",
     "object_collection_open",
     "selected_objects",
+    "submission_label",
+    "submission_prompt",
     "participant_message",
     "daily_games",
     "roulette_candidates",
@@ -54,6 +62,8 @@ function normalizeSession(session: StoredSession): Omit<StoredSession, "admin_pi
   return {
     ...safeSession,
     participant_message: resolveParticipantMessage(safeSession.participant_message),
+    submission_label: resolveSubmissionLabel(safeSession.submission_label),
+    submission_prompt: resolveSubmissionPrompt(safeSession.submission_prompt),
     daily_games: parseDailyGames(safeSession.daily_games),
     roulette_candidates: safeSession.roulette_candidates ?? [],
     roulette_spun_at: safeSession.roulette_spun_at ?? null,
@@ -230,6 +240,8 @@ export async function POST(request: NextRequest) {
           current_round: 1,
           object_collection_open: false,
           selected_objects: [],
+          submission_label: DEFAULT_SUBMISSION_LABEL,
+          submission_prompt: DEFAULT_SUBMISSION_PROMPT,
           participant_message: DEFAULT_PARTICIPANT_MESSAGE,
           daily_games: [],
         })
@@ -351,7 +363,7 @@ export async function PATCH(request: NextRequest) {
           : objectNames;
       const selected = drawObjects(availableObjects, 1);
       if (selected.length === 0) {
-        return NextResponse.json({ error: "Aun no hay objetos para sortear" }, { status: 400 });
+        return NextResponse.json({ error: "Aun no hay propuestas para sortear" }, { status: 400 });
       }
 
       const rouletteCandidates = objectNames.length > 0 ? objectNames : selected;
@@ -366,7 +378,7 @@ export async function PATCH(request: NextRequest) {
           roulette_spun_at: spunAt,
         })
         .eq("id", session.id)
-        .select(sessionSelect())
+        .select("*")
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({
@@ -386,6 +398,12 @@ export async function PATCH(request: NextRequest) {
     if (typeof body.title === "string") updates.title = body.title.trim();
     if (typeof body.participant_message === "string") {
       updates.participant_message = body.participant_message.trim();
+    }
+    if (typeof body.submission_label === "string") {
+      updates.submission_label = resolveSubmissionLabel(body.submission_label).slice(0, 40);
+    }
+    if (typeof body.submission_prompt === "string") {
+      updates.submission_prompt = resolveSubmissionPrompt(body.submission_prompt).slice(0, 160);
     }
     if (Array.isArray(body.daily_games)) {
       updates.daily_games = parseDailyGames(body.daily_games);
@@ -407,7 +425,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "Falta la migracion en Supabase. Ejecuta el archivo supabase/migration-admin-panel.sql en el SQL Editor.",
+              "Falta una migracion en Supabase. Ejecuta supabase/migration-submission-prompt.sql (y migration-admin-panel.sql si aplica).",
           },
           { status: 500 }
         );

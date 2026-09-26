@@ -13,6 +13,8 @@ export interface VotingSession {
   current_round: number;
   object_collection_open: boolean;
   selected_objects: string[];
+  submission_label: string;
+  submission_prompt: string;
   participant_message: string;
   daily_games: DailyGame[];
   roulette_candidates: string[];

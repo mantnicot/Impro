@@ -7,12 +7,13 @@ interface WordRouletteProps {
   items: string[];
   winner: string;
   open: boolean;
+  label?: string;
   onComplete?: () => void;
 }
 
 const SEGMENTS = ["#D61A21", "#FFC600", "#1A3A82", "#FFC600", "#D61A21", "#1A3A82"];
 
-export function WordRoulette({ items, winner, open, onComplete }: WordRouletteProps) {
+export function WordRoulette({ items, winner, open, label = "Propuesta", onComplete }: WordRouletteProps) {
   const pool = useMemo(() => {
     const unique = [...new Set(items.filter(Boolean))];
     if (unique.length === 0) return winner ? [winner] : [];
@@ -94,12 +95,14 @@ export function WordRoulette({ items, winner, open, onComplete }: WordRoulettePr
             <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1">
               <div className="h-0 w-0 border-x-[14px] border-b-[26px] border-x-transparent border-b-tava-yellow drop-shadow-lg" />
             </div>
-            <div className="absolute inset-0 flex items-center justify-center p-10 text-center">
+            <div className="absolute inset-0 flex items-center justify-center p-8 text-center sm:p-10">
               <motion.p
                 key={displayWord + phase}
                 initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: phase === "winner" ? 1.12 : 1 }}
-                className="font-display text-3xl leading-none tracking-wide"
+                animate={{ opacity: 1, scale: phase === "winner" ? 1.08 : 1 }}
+                className={`font-display leading-tight tracking-wide ${
+                  displayWord.length > 28 ? "text-lg sm:text-xl" : displayWord.length > 16 ? "text-2xl" : "text-3xl"
+                }`}
                 style={{ color: phase === "winner" ? "#FFC600" : flashColor }}
               >
                 {displayWord}
@@ -111,7 +114,7 @@ export function WordRoulette({ items, winner, open, onComplete }: WordRoulettePr
             animate={{ opacity: 1 }}
             className="mt-4 text-center font-hand text-2xl text-tava-yellow"
           >
-            {phase === "spinning" ? "¡Girando a toda!" : "¡Palabra elegida!"}
+            {phase === "spinning" ? "¡Girando a toda!" : `¡${label} elegido!`}
           </motion.p>
         </motion.div>
       </motion.div>

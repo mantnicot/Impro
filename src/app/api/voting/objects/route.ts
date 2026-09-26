@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
-function normalizeObjectName(value: string): string {
-  return value.trim().replace(/\s+/g, " ").slice(0, 48);
+const MAX_LENGTH = 120;
+
+function normalizeSubmission(value: string): string {
+  return value.trim().replace(/\s+/g, " ").slice(0, MAX_LENGTH);
 }
 
 export async function POST(request: NextRequest) {
@@ -13,23 +15,23 @@ export async function POST(request: NextRequest) {
       objectName?: string;
     };
 
-    const normalized = normalizeObjectName(objectName ?? "");
+    const normalized = normalizeSubmission(objectName ?? "");
     if (!sessionId || !voterId || !normalized) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
     }
     if (normalized.length < 2) {
-      return NextResponse.json({ error: "Objeto demasiado corto" }, { status: 400 });
+      return NextResponse.json({ error: "Texto demasiado corto" }, { status: 400 });
     }
 
     const db = getSupabaseAdmin();
     const { data: session } = await db
       .from("voting_sessions")
-      .select("id, object_collection_open, current_round")
+      .select("id, object_collection_open, current_round, submission_label")
       .eq("id", sessionId)
       .single();
 
     if (!session?.object_collection_open) {
-      return NextResponse.json({ error: "La recepcion de objetos esta cerrada" }, { status: 403 });
+      return NextResponse.json({ error: "La recepcion esta cerrada" }, { status: 403 });
     }
 
     const round = session.current_round ?? 1;

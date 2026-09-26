@@ -5,6 +5,11 @@ import { motion } from "framer-motion";
 import { clearSession, getAdminPin, getSessionCode, setSessionCode, setSessionId } from "@/lib/role-storage";
 import { DEFAULT_PARTICIPANT_MESSAGE } from "@/lib/voting/default-participant-message";
 import {
+  DEFAULT_SUBMISSION_LABEL,
+  DEFAULT_SUBMISSION_PROMPT,
+  SUBMISSION_PRESETS,
+} from "@/lib/voting/submission-prompt";
+import {
   ARTIST_COLORS,
   ARTIST_TAGLINES,
   type AvatarGender,
@@ -70,7 +75,10 @@ export function VotingAdminPanel() {
   const [error, setError] = useState("");
   const [participantMessage, setParticipantMessage] = useState(DEFAULT_PARTICIPANT_MESSAGE);
   const [dailyGames, setDailyGames] = useState<DailyGame[]>([]);
+  const [submissionLabel, setSubmissionLabel] = useState(DEFAULT_SUBMISSION_LABEL);
+  const [submissionPrompt, setSubmissionPrompt] = useState(DEFAULT_SUBMISSION_PROMPT);
   const [configSaved, setConfigSaved] = useState("");
+  const [promptSaved, setPromptSaved] = useState("");
   const [rouletteOpen, setRouletteOpen] = useState(false);
   const [rouletteItems, setRouletteItems] = useState<string[]>([]);
   const [rouletteWinner, setRouletteWinner] = useState("");
@@ -83,6 +91,8 @@ export function VotingAdminPanel() {
     if (configTouchedRef.current || !nextSession) return;
     setParticipantMessage(nextSession.participant_message || DEFAULT_PARTICIPANT_MESSAGE);
     setDailyGames(nextSession.daily_games ?? []);
+    setSubmissionLabel(nextSession.submission_label || DEFAULT_SUBMISSION_LABEL);
+    setSubmissionPrompt(nextSession.submission_prompt || DEFAULT_SUBMISSION_PROMPT);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -298,6 +308,29 @@ export function VotingAdminPanel() {
     }
   };
 
+  const saveSubmissionPrompt = async () => {
+    setPromptSaved("");
+    setError("");
+    if (!submissionLabel.trim() || !submissionPrompt.trim()) {
+      setError("Completa el nombre y el texto para el publico.");
+      return;
+    }
+    const data = await patchSession(
+      {
+        submission_label: submissionLabel.trim(),
+        submission_prompt: submissionPrompt.trim(),
+      },
+      "save-prompt"
+    );
+    if (data?.session) {
+      configTouchedRef.current = false;
+      setSubmissionLabel(data.session.submission_label || DEFAULT_SUBMISSION_LABEL);
+      setSubmissionPrompt(data.session.submission_prompt || DEFAULT_SUBMISSION_PROMPT);
+      setPromptSaved("Peticion guardada");
+      setTimeout(() => setPromptSaved(""), 2000);
+    }
+  };
+
   const addDailyGame = () => {
     configTouchedRef.current = true;
     setDailyGames((prev) => [...prev, { id: crypto.randomUUID(), name: "", description: "" }]);
@@ -367,6 +400,7 @@ export function VotingAdminPanel() {
         items={rouletteItems}
         winner={rouletteWinner}
         open={rouletteOpen}
+        label={submissionLabel || session?.submission_label || "Propuesta"}
         onComplete={() => setRouletteOpen(false)}
       />
 
@@ -578,11 +612,82 @@ export function VotingAdminPanel() {
 
         {step === "jugadores" && (
           <div className="space-y-3">
+            <section className="rounded-2xl border-4 border-tava-yellow bg-white p-4 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-tava-red">Peticion al publico</p>
+              <h2 className="font-display text-xl font-bold text-tava-blue">Que van a escribir</h2>
+              <p className="mt-1 text-xs text-gray-500">
+                Define el nombre (ej. Piropo) y el texto que veran los participantes.
+              </p>
+              {promptSaved && <p className="mt-2 text-sm font-bold text-green-600">{promptSaved}</p>}
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {SUBMISSION_PRESETS.map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      configTouchedRef.current = true;
+                      setSubmissionLabel(preset.label);
+                      setSubmissionPrompt(preset.prompt);
+                    }}
+                    className={`rounded-full px-3 py-1.5 text-xs font-black ${
+                      submissionLabel === preset.label
+                        ? "bg-tava-red text-white"
+                        : "bg-gray-100 text-tava-blue"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+
+              <label className="mt-4 block text-xs font-black uppercase tracking-wide text-gray-500">
+                Nombre del elemento
+              </label>
+              <input
+                value={submissionLabel}
+                onChange={(e) => {
+                  configTouchedRef.current = true;
+                  setSubmissionLabel(e.target.value);
+                }}
+                placeholder="Ej: Piropo, Premisa, Objeto..."
+                className={fieldClass}
+                maxLength={40}
+              />
+
+              <label className="mt-3 block text-xs font-black uppercase tracking-wide text-gray-500">
+                Texto para el publico
+              </label>
+              <input
+                value={submissionPrompt}
+                onChange={(e) => {
+                  configTouchedRef.current = true;
+                  setSubmissionPrompt(e.target.value);
+                }}
+                placeholder="Ej: Escribe un piropo..."
+                className={fieldClass}
+                maxLength={160}
+              />
+
+              <button
+                type="button"
+                disabled={!!busyAction}
+                onClick={() => void saveSubmissionPrompt()}
+                className="mt-4 w-full min-h-12 rounded-xl bg-tava-blue text-sm font-black text-white disabled:opacity-50"
+              >
+                {busyAction === "save-prompt" ? "Guardando..." : "Guardar peticion"}
+              </button>
+            </section>
+
             <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="font-display text-lg font-bold text-gray-800">Palabra de la ronda</h2>
-                  <p className="text-xs text-gray-500">Recibe objetos y sortea una palabra.</p>
+                  <h2 className="font-display text-lg font-bold text-gray-800">
+                    Sorteo de {submissionLabel || "propuestas"}
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    Recibe propuestas y sortea una en la ruleta.
+                  </p>
                 </div>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-bold ${
@@ -616,7 +721,7 @@ export function VotingAdminPanel() {
                   onClick={() => void patchSession({ action: "open_objects" }, "open-objects")}
                   className="min-h-12 rounded-xl border-2 border-green-500 bg-green-50 text-sm font-bold text-green-700 disabled:opacity-50"
                 >
-                  Recibir objetos
+                  Abrir recepcion
                 </button>
                 <button
                   type="button"
@@ -632,9 +737,18 @@ export function VotingAdminPanel() {
                   onClick={() => void drawObjects()}
                   className="min-h-12 rounded-xl bg-amber-500 text-sm font-bold text-white disabled:opacity-40"
                 >
-                  {selectedObjects.length > 0 ? "Cambiar palabra" : "Sortear palabra"}
+                  {selectedObjects.length > 0
+                    ? `Cambiar ${submissionLabel.toLowerCase()}`
+                    : `Sortear ${submissionLabel.toLowerCase()}`}
                 </button>
               </div>
+              {summary.objectSubmissionCount > 0 && (
+                <p className="mt-2 text-center text-xs font-bold text-gray-500">
+                  {summary.objectSubmissionCount} propuesta
+                  {summary.objectSubmissionCount !== 1 ? "s" : ""} recibida
+                  {summary.objectSubmissionCount !== 1 ? "s" : ""}
+                </p>
+              )}
             </section>
 
             <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
