@@ -19,6 +19,7 @@ import { ArtistIdentityCard } from "./ArtistIdentityCard";
 import { LiveScoreboard } from "./LiveScoreboard";
 import { ShowWelcomeMessage } from "./ShowWelcomeMessage";
 import { VotingResults } from "./VotingResults";
+import { RoomQrCard } from "./RoomQrCard";
 import { WordRoulette } from "./WordRoulette";
 
 type AdminStep = "sala" | "show" | "jugadores" | "salas";
@@ -114,10 +115,32 @@ export function VotingAdminPanel() {
     }
   }, [code, applySessionConfig]);
 
+  const applySessionNow = useCallback(
+    (next: VotingSession | null | undefined) => {
+      if (!next) return;
+      setSession(next);
+      applySessionConfig(next);
+    },
+    [applySessionConfig]
+  );
+
   useEffect(() => {
-    void refresh();
-    const t = setInterval(() => void refresh(), 4000);
-    return () => clearInterval(t);
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled || document.hidden) return;
+      void refresh();
+    };
+    tick();
+    const t = window.setInterval(tick, 8000);
+    const onVisibility = () => {
+      if (!document.hidden) tick();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [refresh]);
 
   const refreshRooms = useCallback(async () => {
@@ -218,12 +241,14 @@ export function VotingAdminPanel() {
         setError(data.error);
         return;
       }
+      if (data.artist) {
+        setArtists((prev) => [...prev, data.artist as Artist]);
+      }
       const nextIndex = artists.length + 1;
       setNewName("");
       setNewColor(ARTIST_COLORS[nextIndex % ARTIST_COLORS.length]!);
       setNewAvatarGender(nextIndex % 2 === 0 ? "male" : "female");
       setNewTagline(ARTIST_TAGLINES[nextIndex % ARTIST_TAGLINES.length]!);
-      void refresh();
     } finally {
       setBusyAction(null);
     }
@@ -255,8 +280,21 @@ export function VotingAdminPanel() {
   };
 
   const removeArtist = async (id: string) => {
-    await fetch(`/api/voting/artists?id=${id}`, { method: "DELETE", headers: adminHeaders() });
-    void refresh();
+    setArtists((prev) => prev.filter((artist) => artist.id !== id));
+    setBusyAction(id);
+    try {
+      const res = await fetch(`/api/voting/artists?id=${id}`, {
+        method: "DELETE",
+        headers: adminHeaders(),
+      });
+      if (!res.ok) {
+        void refresh();
+        const data = await res.json().catch(() => ({}));
+        setError((data as { error?: string }).error ?? "No se pudo borrar");
+      }
+    } finally {
+      setBusyAction(null);
+    }
   };
 
   const patchSession = async (body: Record<string, unknown>, label: string) => {
@@ -273,7 +311,8 @@ export function VotingAdminPanel() {
         setError(data.error ?? "Error");
         return data;
       }
-      void refresh();
+      applySessionNow(data.session);
+      if (data.summary) setSummary(data.summary);
       return data;
     } finally {
       setBusyAction(null);
@@ -360,12 +399,12 @@ export function VotingAdminPanel() {
         setError(data.error ?? "Error");
         return;
       }
+      applySessionNow(data.session);
       const winner = data.winner ?? data.selectedObjects?.[0] ?? "";
       const candidates = data.rouletteCandidates ?? data.session?.roulette_candidates ?? [];
       setRouletteItems(candidates.length > 0 ? candidates : winner ? [winner] : []);
       setRouletteWinner(winner);
       setRouletteOpen(true);
-      void refresh();
     } finally {
       setBusyAction(null);
     }
@@ -436,6 +475,8 @@ export function VotingAdminPanel() {
 
         {step === "sala" && session && (
           <div className="space-y-3">
+            <RoomQrCard code={session.code} />
+
             <section className="rounded-2xl border border-tava-purple/30 bg-white p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>

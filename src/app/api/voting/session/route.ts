@@ -192,10 +192,25 @@ export async function GET(request: NextRequest) {
 
     let results = null;
     let summary: VotingSummary | null = null;
-    const { data: votes } = await db.from("votes").select("*").eq("session_id", session.id);
-    const safeVotes = (votes ?? []) as Vote[];
-    results = computeResults((artists ?? []) as Artist[], safeVotes);
-    summary = summarizeVotes(safeVotes, round, (objectRows ?? []).length);
+    const includeResults =
+      request.nextUrl.searchParams.get("includeResults") === "true" ||
+      session.show_results ||
+      Boolean(voterId);
+
+    if (includeResults) {
+      const { data: votes } = await db.from("votes").select("*").eq("session_id", session.id);
+      const safeVotes = (votes ?? []) as Vote[];
+      results = computeResults((artists ?? []) as Artist[], safeVotes);
+      summary = summarizeVotes(safeVotes, round, (objectRows ?? []).length);
+    } else {
+      summary = {
+        totalVotes: 0,
+        currentRoundVotes: 0,
+        participantCount: 0,
+        currentRoundParticipantCount: 0,
+        objectSubmissionCount: (objectRows ?? []).length,
+      };
+    }
 
     return NextResponse.json({
       session: normalizeSession(session),

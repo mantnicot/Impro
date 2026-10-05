@@ -1,32 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { formatSubmissionDisplay } from "@/lib/voting/submission-display";
 
-const MAX_LENGTH = 120;
+const MAX_LENGTH = 160;
 
-function normalizeSubmission(value: string): string {
-  return value.trim().replace(/\s+/g, " ").slice(0, MAX_LENGTH);
+function normalizePhrase(value: string): string {
+  return value.trim().replace(/\s+/g, " ").slice(0, 120);
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { sessionId, voterId, objectName } = (await request.json()) as {
+    const { sessionId, voterId, objectName, authorName } = (await request.json()) as {
       sessionId?: string;
       voterId?: string;
       objectName?: string;
+      authorName?: string;
     };
 
-    const normalized = normalizeSubmission(objectName ?? "");
-    if (!sessionId || !voterId || !normalized) {
+    const phrase = normalizePhrase(objectName ?? "");
+    if (!sessionId || !voterId || !phrase) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
     }
-    if (normalized.length < 2) {
+    if (phrase.length < 2) {
       return NextResponse.json({ error: "Texto demasiado corto" }, { status: 400 });
     }
+
+    const stored = formatSubmissionDisplay(phrase, authorName).slice(0, MAX_LENGTH);
 
     const db = getSupabaseAdmin();
     const { data: session } = await db
       .from("voting_sessions")
-      .select("id, object_collection_open, current_round, submission_label")
+      .select("id, object_collection_open, current_round")
       .eq("id", sessionId)
       .single();
 
@@ -41,7 +45,7 @@ export async function POST(request: NextRequest) {
         {
           session_id: sessionId,
           voter_id: voterId,
-          object_name: normalized,
+          object_name: stored,
           round,
         },
         { onConflict: "session_id,voter_id,object_name,round" }

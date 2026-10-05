@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { clearSession, getSessionCode, getSessionId, getVoterId } from "@/lib/role-storage";
+import { formatSubmissionDisplay } from "@/lib/voting/submission-display";
 import type { Artist, ArtistResult, VotingSession } from "@/lib/voting/types";
 import { ArtistIdentityCard } from "./ArtistIdentityCard";
 import { DailyGamesFab } from "./DailyGamesFab";
@@ -251,6 +252,7 @@ export function VotingParticipantView() {
   const [results, setResults] = useState<ArtistResult[]>([]);
   const [myObjects, setMyObjects] = useState<string[]>([]);
   const [objectInput, setObjectInput] = useState("");
+  const [authorInput, setAuthorInput] = useState("");
   const [saved, setSaved] = useState("");
   const [savingVotes, setSavingVotes] = useState(false);
   const [savingObject, setSavingObject] = useState(false);
@@ -308,9 +310,22 @@ export function VotingParticipantView() {
   }, [code, voterId, maybeShowRoulette]);
 
   useEffect(() => {
-    void refresh();
-    const t = setInterval(() => void refresh(), 5000);
-    return () => clearInterval(t);
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled || document.hidden) return;
+      void refresh();
+    };
+    tick();
+    const t = window.setInterval(tick, 10000);
+    const onVisibility = () => {
+      if (!document.hidden) tick();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -384,9 +399,15 @@ export function VotingParticipantView() {
         setError(data.error ?? "Error");
         return;
       }
-      await refresh();
+      setVotes((prev) => {
+        const next = { ...prev };
+        for (const vote of votesToSave) next[vote.artistId] = vote.value;
+        return next;
+      });
+      setPendingVotes({});
       setSaved("Votos guardados. Ya no necesitas votar otra vez.");
       setTimeout(() => setSaved(""), 2000);
+      void refresh();
     } finally {
       setSavingVotes(false);
     }
@@ -395,7 +416,13 @@ export function VotingParticipantView() {
   const submitObject = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!session?.object_collection_open || !objectInput.trim()) return;
+    const phrase = objectInput.trim();
+    const author = authorInput.trim();
+    const display = formatSubmissionDisplay(phrase, author);
     setSaved("");
+    setError("");
+    setObjectInput("");
+    setMyObjects((prev) => (prev.includes(display) ? prev : [...prev, display]));
     setSavingObject(true);
     try {
       const res = await fetch("/api/voting/objects", {
@@ -404,16 +431,22 @@ export function VotingParticipantView() {
         body: JSON.stringify({
           sessionId: session.id,
           voterId,
-          objectName: objectInput.trim(),
+          objectName: phrase,
+          authorName: author,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
+        setMyObjects((prev) => prev.filter((item) => item !== display));
+        setObjectInput(phrase);
         setError(data.error ?? "Error");
         return;
       }
-      setObjectInput("");
-      await refresh();
+      const stored = (data.object?.object_name as string | undefined) ?? display;
+      setMyObjects((prev) => {
+        const withoutTemp = prev.filter((item) => item !== display);
+        return withoutTemp.includes(stored) ? withoutTemp : [...withoutTemp, stored];
+      });
       setSaved("Enviado");
       setTimeout(() => setSaved(""), 2000);
     } finally {
@@ -575,8 +608,6 @@ export function VotingParticipantView() {
       rouletteWinner={rouletteWinner}
       onRouletteComplete={handleRouletteComplete}
     >
-      {savingObject && <SavingOverlay text="Enviando..." />}
-
       <section className="rounded-2xl border border-gray-200 bg-white p-4 text-center shadow-sm sm:rounded-3xl sm:p-5">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 sm:text-xs sm:tracking-[0.25em]">
           Sala {code}
@@ -602,22 +633,35 @@ export function VotingParticipantView() {
           <p className="mb-2 text-center text-xs font-bold text-tava-purple">
             {session.submission_prompt || "Escribe tu propuesta"}
           </p>
-          <form onSubmit={submitObject} className="flex flex-col gap-2 sm:flex-row">
+          <form onSubmit={submitObject} className="flex flex-col gap-2">
             <input
               value={objectInput}
               onChange={(e) => setObjectInput(e.target.value)}
               disabled={savingObject}
               maxLength={120}
               placeholder={session.submission_prompt || "Escribe aqui..."}
-              className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm disabled:bg-gray-50"
+              className="min-h-[44px] w-full rounded-xl border border-gray-200 px-3 py-2 text-sm disabled:bg-gray-50"
             />
-            <button
-              type="submit"
-              disabled={!objectInput.trim() || savingObject}
-              className="min-h-[44px] rounded-xl bg-tava-purple px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
-            >
-              Enviar
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5">
+                <span className="shrink-0 text-xs font-bold text-gray-500">por</span>
+                <input
+                  value={authorInput}
+                  onChange={(e) => setAuthorInput(e.target.value)}
+                  disabled={savingObject}
+                  maxLength={40}
+                  placeholder="Tu nombre (opcional)"
+                  className="min-h-[36px] min-w-0 flex-1 bg-transparent text-sm outline-none disabled:opacity-50"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={!objectInput.trim() || savingObject}
+                className="min-h-[44px] rounded-xl bg-tava-purple px-4 py-2 text-sm font-bold text-white disabled:opacity-40 sm:min-w-[100px]"
+              >
+                {savingObject ? "..." : "Enviar"}
+              </button>
+            </div>
           </form>
 
           {myObjects.length > 0 && (

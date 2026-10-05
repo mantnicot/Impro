@@ -18,7 +18,6 @@ export function WordRoulette({ items, winner, open, label = "Propuesta", onCompl
     const unique = [...new Set(items.filter(Boolean))];
     if (unique.length === 0) return winner ? [winner] : [];
     if (!unique.includes(winner) && winner) unique.push(winner);
-    // Rellenar para que la ruleta se vea siempre colorida
     while (unique.length < 6) {
       unique.push(...unique.slice(0, Math.min(unique.length, 6 - unique.length)));
     }
@@ -53,12 +52,11 @@ export function WordRoulette({ items, winner, open, label = "Propuesta", onCompl
         setDisplayWord(winner);
         setFlashColor("#FFC600");
         setPhase("winner");
-        window.setTimeout(() => onComplete?.(), 700);
       }
     }, 45);
 
     return () => window.clearInterval(interval);
-  }, [open, pool, winner, onComplete]);
+  }, [open, pool, winner]);
 
   if (!open || !winner) return null;
 
@@ -68,11 +66,15 @@ export function WordRoulette({ items, winner, open, label = "Propuesta", onCompl
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[80] flex items-center justify-center bg-tava-blue/80 px-4 backdrop-blur-sm"
+        className="fixed inset-0 z-[80] flex cursor-pointer items-center justify-center bg-tava-blue/80 px-4 backdrop-blur-sm"
+        onClick={() => {
+          if (phase === "winner") onComplete?.();
+        }}
       >
         <motion.div
           initial={{ scale: 0.86, y: 24 }}
           animate={{ scale: 1, y: 0 }}
+          onClick={(event) => event.stopPropagation()}
           className="w-full max-w-md overflow-hidden rounded-3xl border-4 border-tava-yellow bg-tava-blue p-5 text-white shadow-[10px_10px_0_rgba(11,18,32,0.45)]"
         >
           <div className="text-center">
@@ -101,7 +103,11 @@ export function WordRoulette({ items, winner, open, label = "Propuesta", onCompl
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: phase === "winner" ? 1.08 : 1 }}
                 className={`font-display leading-tight tracking-wide ${
-                  displayWord.length > 28 ? "text-lg sm:text-xl" : displayWord.length > 16 ? "text-2xl" : "text-3xl"
+                  displayWord.length > 40
+                    ? "text-base sm:text-lg"
+                    : displayWord.length > 24
+                      ? "text-xl sm:text-2xl"
+                      : "text-3xl"
                 }`}
                 style={{ color: phase === "winner" ? "#FFC600" : flashColor }}
               >
@@ -116,6 +122,16 @@ export function WordRoulette({ items, winner, open, label = "Propuesta", onCompl
           >
             {phase === "spinning" ? "¡Girando a toda!" : `¡${label} elegido!`}
           </motion.p>
+
+          {phase === "winner" && (
+            <button
+              type="button"
+              onClick={() => onComplete?.()}
+              className="mt-4 w-full rounded-xl bg-tava-yellow py-3 font-display text-lg tracking-wide text-tava-blue"
+            >
+              Toca para continuar
+            </button>
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>

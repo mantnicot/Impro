@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ShowBrandTitle } from "@/components/ShowBrandTitle";
 import {
@@ -22,28 +22,53 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
   const [title, setTitle] = useState("Noche TAVA");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const autoJoinTried = useRef(false);
 
-  const joinParticipant = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/voting/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "join", code: roomCode.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error al unirse");
-      setRole("participant");
-      setSessionCode(data.session.code);
-      setSessionId(data.session.id);
-      onJoined("participant");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const joinParticipant = useCallback(
+    async (codeOverride?: string) => {
+      const code = (codeOverride ?? roomCode).trim().toUpperCase();
+      if (code.length < 4) return;
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch("/api/voting/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "join", code }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Error al unirse");
+        setRole("participant");
+        setSessionCode(data.session.code);
+        setSessionId(data.session.id);
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("join");
+          url.searchParams.delete("code");
+          window.history.replaceState({}, "", url.pathname + url.search);
+        }
+        onJoined("participant");
+      } catch (e) {
+        setMode("participant");
+        setRoomCode(code);
+        setError(e instanceof Error ? e.message : "Error");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [onJoined, roomCode]
+  );
+
+  useEffect(() => {
+    if (autoJoinTried.current) return;
+    autoJoinTried.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const join = (params.get("join") || params.get("code") || "").trim().toUpperCase();
+    if (!join) return;
+    setMode("participant");
+    setRoomCode(join);
+    void joinParticipant(join);
+  }, [joinParticipant]);
 
   const createAdmin = async () => {
     setLoading(true);
@@ -128,7 +153,9 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
               ← Volver
             </button>
             <h2 className="mt-2 font-display text-xl font-bold text-gray-800">Unirse a votación</h2>
-            <p className="text-sm text-gray-500">Ingresa el código que te dio el admin</p>
+            <p className="text-sm text-gray-500">
+              Ingresa el código o escanea el QR de la sala
+            </p>
             <input
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
