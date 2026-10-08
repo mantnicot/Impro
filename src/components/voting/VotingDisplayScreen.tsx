@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { ShowBrandTitle } from "@/components/ShowBrandTitle";
 import {
   resolveEffectiveDisplayScene,
   type DisplayScene,
 } from "@/lib/voting/display-scene";
 import type { ArtistResult, DailyGame, VotingSession, VotingSummary } from "@/lib/voting/types";
+import { TelonTransition } from "./TelonTransition";
 import { WordRoulette } from "./WordRoulette";
 
 interface VotingDisplayScreenProps {
@@ -31,7 +32,12 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
   const [rouletteOpen, setRouletteOpen] = useState(false);
   const [rouletteItems, setRouletteItems] = useState<string[]>([]);
   const [rouletteWinner, setRouletteWinner] = useState("");
+  const [visibleScene, setVisibleScene] = useState<DisplayScene>("lobby");
+  const [telonKey, setTelonKey] = useState(0);
+  const [telonPlaying, setTelonPlaying] = useState(false);
   const lastSpinRef = useRef<string | null>(null);
+  const firstSceneReady = useRef(false);
+  const pendingSceneRef = useRef<DisplayScene | null>(null);
 
   useEffect(() => {
     setJoinUrl(`${window.location.origin}/?join=${encodeURIComponent(code)}`);
@@ -96,6 +102,34 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
     [session]
   );
 
+  useEffect(() => {
+    if (!session) return;
+    if (!firstSceneReady.current) {
+      firstSceneReady.current = true;
+      setVisibleScene(scene);
+      return;
+    }
+    if (scene === visibleScene) return;
+    pendingSceneRef.current = scene;
+    if (telonPlaying) return;
+    setTelonPlaying(true);
+    setTelonKey((key) => key + 1);
+  }, [scene, session, visibleScene, telonPlaying]);
+
+  const handleTelonMidpoint = useCallback(() => {
+    if (pendingSceneRef.current) {
+      setVisibleScene(pendingSceneRef.current);
+    }
+  }, []);
+
+  const handleTelonComplete = useCallback(() => {
+    if (pendingSceneRef.current) {
+      setVisibleScene(pendingSceneRef.current);
+    }
+    pendingSceneRef.current = null;
+    setTelonPlaying(false);
+  }, []);
+
   const qrSrc = useMemo(() => {
     if (!joinUrl) return "";
     return `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=10&data=${encodeURIComponent(joinUrl)}`;
@@ -132,6 +166,12 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
         onComplete={() => setRouletteOpen(false)}
       />
 
+      <TelonTransition
+        playKey={telonKey}
+        onMidpoint={handleTelonMidpoint}
+        onComplete={handleTelonComplete}
+      />
+
       <div className="relative z-10 flex h-full flex-col px-6 py-5 sm:px-10 sm:py-8">
         <header className="flex items-start justify-between gap-4">
           <ShowBrandTitle size="md" light className="items-start" />
@@ -144,26 +184,17 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
         </header>
 
         <main className="flex min-h-0 flex-1 items-center justify-center">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={scene}
-              initial={{ opacity: 0, y: 28, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -18, scale: 1.02 }}
-              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-              className="w-full max-w-6xl"
-            >
-              <SceneContent
-                scene={scene}
-                session={session!}
-                summary={summary}
-                results={results}
-                qrSrc={qrSrc}
-                joinUrl={joinUrl}
-                rouletteOpen={rouletteOpen}
-              />
-            </motion.div>
-          </AnimatePresence>
+          <div className="w-full max-w-6xl">
+            <SceneContent
+              scene={visibleScene}
+              session={session!}
+              summary={summary}
+              results={results}
+              qrSrc={qrSrc}
+              joinUrl={joinUrl}
+              rouletteOpen={rouletteOpen}
+            />
+          </div>
         </main>
       </div>
     </div>
