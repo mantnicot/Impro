@@ -19,8 +19,10 @@ import { ArtistIdentityCard } from "./ArtistIdentityCard";
 import { LiveScoreboard } from "./LiveScoreboard";
 import { ShowWelcomeMessage } from "./ShowWelcomeMessage";
 import { VotingResults } from "./VotingResults";
+import { DisplaySceneControls } from "./DisplaySceneControls";
 import { RoomQrCard } from "./RoomQrCard";
 import { WordRoulette } from "./WordRoulette";
+import type { DisplayScene } from "@/lib/voting/display-scene";
 
 type AdminStep = "sala" | "show" | "jugadores" | "salas";
 
@@ -476,6 +478,14 @@ export function VotingAdminPanel() {
         {step === "sala" && session && (
           <div className="space-y-3">
             <RoomQrCard code={session.code} />
+
+            <DisplaySceneControls
+              session={session}
+              busy={!!busyAction}
+              onSetScene={(scene: DisplayScene) => {
+                void patchSession({ display_scene: scene }, `display-${scene}`);
+              }}
+            />
 
             <section className="rounded-2xl border border-tava-purple/30 bg-white p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">

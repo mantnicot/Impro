@@ -14,6 +14,7 @@ import {
   resolveSubmissionLabel,
   resolveSubmissionPrompt,
 } from "@/lib/voting/submission-prompt";
+import { resolveDisplayScene } from "@/lib/voting/display-scene";
 import type {
   Artist,
   DailyGame,
@@ -67,6 +68,7 @@ function normalizeSession(session: StoredSession): Omit<StoredSession, "admin_pi
     daily_games: parseDailyGames(safeSession.daily_games),
     roulette_candidates: safeSession.roulette_candidates ?? [],
     roulette_spun_at: safeSession.roulette_spun_at ?? null,
+    display_scene: resolveDisplayScene(safeSession.display_scene),
   };
 }
 
@@ -326,7 +328,7 @@ export async function PATCH(request: NextRequest) {
           roulette_spun_at: null,
         })
         .eq("id", session.id)
-        .select(sessionSelect())
+        .select("*")
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ session: normalizeSession(data as unknown as StoredSession) });
@@ -343,7 +345,7 @@ export async function PATCH(request: NextRequest) {
           roulette_spun_at: null,
         })
         .eq("id", session.id)
-        .select(sessionSelect())
+        .select("*")
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ session: normalizeSession(data as unknown as StoredSession) });
@@ -354,7 +356,7 @@ export async function PATCH(request: NextRequest) {
         .from("voting_sessions")
         .update({ object_collection_open: false })
         .eq("id", session.id)
-        .select(sessionSelect())
+        .select("*")
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ session: normalizeSession(data as unknown as StoredSession) });
@@ -423,6 +425,9 @@ export async function PATCH(request: NextRequest) {
     if (Array.isArray(body.daily_games)) {
       updates.daily_games = parseDailyGames(body.daily_games);
     }
+    if (typeof body.display_scene === "string") {
+      updates.display_scene = resolveDisplayScene(body.display_scene);
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 });
@@ -437,10 +442,12 @@ export async function PATCH(request: NextRequest) {
 
     if (error) {
       if (isMissingColumnError(error.message)) {
+        const needsDisplay = "display_scene" in updates;
         return NextResponse.json(
           {
-            error:
-              "Falta una migracion en Supabase. Ejecuta supabase/migration-submission-prompt.sql (y migration-admin-panel.sql si aplica).",
+            error: needsDisplay
+              ? "Falta la migracion del proyector. Ejecuta supabase/migration-display-scene.sql en Supabase."
+              : "Falta una migracion en Supabase. Ejecuta supabase/migration-submission-prompt.sql (y migration-admin-panel.sql si aplica).",
           },
           { status: 500 }
         );

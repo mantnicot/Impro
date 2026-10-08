@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS voting_sessions (
   daily_games JSONB NOT NULL DEFAULT '[]'::jsonb,
   roulette_candidates TEXT[] NOT NULL DEFAULT '{}',
   roulette_spun_at TIMESTAMPTZ,
+  display_scene TEXT NOT NULL DEFAULT 'auto',
   admin_pin_hash TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

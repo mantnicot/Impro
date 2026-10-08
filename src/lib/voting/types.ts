@@ -19,6 +19,8 @@ export interface VotingSession {
   daily_games: DailyGame[];
   roulette_candidates: string[];
   roulette_spun_at: string | null;
+  /** Solo proyector/TV. No cambia la UI de participantes. */
+  display_scene: string;
   created_at: string;
 }
 

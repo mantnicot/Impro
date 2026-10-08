@@ -15,6 +15,7 @@ import { PremisesModule } from "@/components/PremisesModule";
 import { ControlDock } from "@/components/ControlDock";
 import { JoinScreen } from "@/components/JoinScreen";
 import { VotingAdminPanel } from "@/components/voting/VotingAdminPanel";
+import { VotingDisplayScreen } from "@/components/voting/VotingDisplayScreen";
 import { VotingParticipantView } from "@/components/voting/VotingParticipantView";
 import {
   initStorage,
@@ -63,6 +64,7 @@ const MODULE_COPY: Record<AppModule, { title: string; subtitle: string }> = {
 export default function HomePage() {
   const [ready, setReady] = useState(false);
   const [role, setRoleState] = useState<UserRole>(null);
+  const [displayCode, setDisplayCode] = useState<string | null>(null);
   const [lists, setLists] = useState<WordList[]>([]);
   const [screen, setScreen] = useState<Screen>("hub");
   const [module, setModule] = useState<AppModule>("words");
@@ -76,6 +78,13 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const display = (params.get("display") || "").trim().toUpperCase();
+    if (display) {
+      setDisplayCode(display);
+      setReady(true);
+      return;
+    }
     setRoleState(getRole());
     initStorage().then(() => {
       refreshLists();
@@ -123,6 +132,10 @@ export default function HomePage() {
         />
       </div>
     );
+  }
+
+  if (displayCode) {
+    return <VotingDisplayScreen code={displayCode} />;
   }
 
   if (!role) {
