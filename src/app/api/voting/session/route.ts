@@ -15,6 +15,10 @@ import {
   resolveSubmissionPrompt,
 } from "@/lib/voting/submission-prompt";
 import { resolveDisplayScene } from "@/lib/voting/display-scene";
+import {
+  parseDailyGamesPayload,
+  serializeDailyGamesPayload,
+} from "@/lib/voting/daily-games-payload";
 import { clampGameIndex } from "@/lib/voting/parse-games-paste";
 import type {
   Artist,
@@ -47,33 +51,19 @@ function sessionSelect() {
   ].join(", ");
 }
 
-function parseDailyGames(value: unknown): DailyGame[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((item): item is Record<string, unknown> => item != null && typeof item === "object")
-    .map((item) => ({
-      id: String(item.id ?? crypto.randomUUID()),
-      name: String(item.name ?? "").trim(),
-      description: String(item.description ?? "").trim(),
-    }))
-    .filter((game) => game.name.length > 0);
-}
-
 function normalizeSession(session: StoredSession): Omit<StoredSession, "admin_pin_hash"> {
   const { admin_pin_hash: _, ...safeSession } = session;
+  const gamesPayload = parseDailyGamesPayload(safeSession.daily_games);
   return {
     ...safeSession,
     participant_message: resolveParticipantMessage(safeSession.participant_message),
     submission_label: resolveSubmissionLabel(safeSession.submission_label),
     submission_prompt: resolveSubmissionPrompt(safeSession.submission_prompt),
-    daily_games: parseDailyGames(safeSession.daily_games),
+    daily_games: gamesPayload.games,
     roulette_candidates: safeSession.roulette_candidates ?? [],
     roulette_spun_at: safeSession.roulette_spun_at ?? null,
     display_scene: resolveDisplayScene(safeSession.display_scene),
-    active_game_index: clampGameIndex(
-      Number(safeSession.active_game_index ?? 0),
-      parseDailyGames(safeSession.daily_games).length
-    ),
+    active_game_index: gamesPayload.activeIndex,
   };
 }
 
@@ -265,9 +255,8 @@ export async function POST(request: NextRequest) {
           submission_label: DEFAULT_SUBMISSION_LABEL,
           submission_prompt: DEFAULT_SUBMISSION_PROMPT,
           participant_message: DEFAULT_PARTICIPANT_MESSAGE,
-          daily_games: [],
+          daily_games: serializeDailyGamesPayload([], 0),
           display_scene: "lobby",
-          active_game_index: 0,
         })
         .select("*")
         .single();
@@ -416,7 +405,10 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    const updates: Record<string, boolean | string | number | DailyGame[] | string[] | null> = {};
+    const updates: Record<
+      string,
+      boolean | string | number | DailyGame[] | string[] | null | ReturnType<typeof serializeDailyGamesPayload>
+    > = {};
     if (typeof body.is_open === "boolean") {
       updates.is_open = body.is_open;
       if (body.is_open) updates.display_scene = "auto";
@@ -438,19 +430,20 @@ export async function PATCH(request: NextRequest) {
     if (typeof body.submission_prompt === "string") {
       updates.submission_prompt = resolveSubmissionPrompt(body.submission_prompt).slice(0, 160);
     }
-    if (Array.isArray(body.daily_games)) {
-      const games = parseDailyGames(body.daily_games);
-      updates.daily_games = games;
-      const nextIndex =
-        typeof body.active_game_index === "number"
-          ? body.active_game_index
-          : session.active_game_index ?? 0;
-      updates.active_game_index = clampGameIndex(nextIndex, games.length);
+
+    const currentGames = parseDailyGamesPayload(session.daily_games);
+    const wantsGames = Array.isArray(body.daily_games);
+    const wantsActiveIndex = typeof body.active_game_index === "number";
+    if (wantsGames || wantsActiveIndex) {
+      const games = wantsGames
+        ? parseDailyGamesPayload(body.daily_games).games
+        : currentGames.games;
+      const nextIndex = wantsActiveIndex
+        ? Number(body.active_game_index)
+        : currentGames.activeIndex;
+      updates.daily_games = serializeDailyGamesPayload(games, clampGameIndex(nextIndex, games.length));
     }
-    if (typeof body.active_game_index === "number" && !Array.isArray(body.daily_games)) {
-      const games = parseDailyGames(session.daily_games);
-      updates.active_game_index = clampGameIndex(body.active_game_index, games.length);
-    }
+
     if (typeof body.display_scene === "string") {
       updates.display_scene = resolveDisplayScene(body.display_scene);
     }
@@ -469,13 +462,10 @@ export async function PATCH(request: NextRequest) {
     if (error) {
       if (isMissingColumnError(error.message)) {
         const needsDisplay = "display_scene" in updates;
-        const needsGameIndex = "active_game_index" in updates;
         return NextResponse.json(
           {
-            error: needsGameIndex
-              ? "Falta la migracion del juego activo. Ejecuta supabase/migration-active-game-index.sql en Supabase."
-              : needsDisplay
-                ? "Falta la migracion del proyector. Ejecuta supabase/migration-display-scene.sql en Supabase."
+            error: needsDisplay
+              ? "Falta la migracion del proyector. Ejecuta supabase/migration-display-scene.sql en Supabase."
               : "Falta una migracion en Supabase. Ejecuta supabase/migration-submission-prompt.sql (y migration-admin-panel.sql si aplica).",
           },
           { status: 500 }

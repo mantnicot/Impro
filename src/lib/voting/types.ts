@@ -21,7 +21,7 @@ export interface VotingSession {
   roulette_spun_at: string | null;
   /** Solo proyector/TV. No cambia la UI de participantes. */
   display_scene: string;
-  /** Índice del juego activo en la lista del show. */
+  /** Índice del juego activo (guardado dentro de daily_games JSON, sin columna extra). */
   active_game_index: number;
   created_at: string;
 }
