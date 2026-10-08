@@ -16,12 +16,13 @@ interface DisplaySceneControlsProps {
   onSetScene: (scene: DisplayScene) => void;
 }
 
-const MANUAL_SCENES = DISPLAY_SCENES.filter((scene) => scene !== "auto");
+const MANUAL_SCENES = DISPLAY_SCENES.filter((scene) => scene !== "auto" && scene !== "lobby");
 
 export function DisplaySceneControls({ session, busy, onSetScene }: DisplaySceneControlsProps) {
   const [copied, setCopied] = useState(false);
   const configured = resolveDisplayScene(session.display_scene);
   const effective = resolveEffectiveDisplayScene(session);
+  const waitingToStart = configured === "lobby";
 
   const displayUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -49,7 +50,8 @@ export function DisplaySceneControls({ session, busy, onSetScene }: DisplayScene
       <p className="font-hand text-lg text-tava-red">Videobeam / TV</p>
       <h2 className="font-display text-2xl tracking-wide text-tava-blue">PANTALLA DEL SHOW</h2>
       <p className="mt-1 text-xs text-gray-500">
-        Cambia lo que ve el proyector. No cambia la pantalla de los asistentes en el celular.
+        Empieza en Lobby + QR. Al comenzar, la TV sigue sola (juegos, recepcion, votos, podio) sin
+        cambiar los celulares.
       </p>
 
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -69,13 +71,29 @@ export function DisplaySceneControls({ session, busy, onSetScene }: DisplayScene
         </button>
       </div>
 
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onSetScene(waitingToStart ? "auto" : "lobby")}
+        className={`mt-3 min-h-12 w-full rounded-xl text-sm font-black disabled:opacity-50 ${
+          waitingToStart
+            ? "bg-tava-yellow text-tava-blue"
+            : "border-2 border-tava-yellow bg-yellow-50 text-tava-blue"
+        }`}
+      >
+        {waitingToStart ? "Comenzar juegos (modo auto)" : "Volver a Lobby + QR"}
+      </button>
+
       <div className="mt-4 rounded-xl bg-blue-50 px-3 py-2 text-xs text-tava-blue">
-        Configurada: <span className="font-black">{DISPLAY_SCENE_LABELS[configured]}</span>
+        Modo: <span className="font-black">{DISPLAY_SCENE_LABELS[configured]}</span>
         {" · "}
-        En TV ahora: <span className="font-black">{DISPLAY_SCENE_LABELS[effective]}</span>
+        En TV: <span className="font-black">{DISPLAY_SCENE_LABELS[effective]}</span>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+      <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
+        Forzar escena (opcional)
+      </p>
+      <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
         <button
           type="button"
           disabled={busy}
@@ -87,6 +105,18 @@ export function DisplaySceneControls({ session, busy, onSetScene }: DisplayScene
           }`}
         >
           Auto
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onSetScene("lobby")}
+          className={`min-h-11 rounded-xl text-xs font-black disabled:opacity-50 ${
+            configured === "lobby"
+              ? "bg-tava-red text-white"
+              : "border border-gray-200 bg-gray-50 text-gray-600"
+          }`}
+        >
+          Lobby
         </button>
         {MANUAL_SCENES.map((scene) => (
           <button

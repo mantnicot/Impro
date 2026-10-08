@@ -261,6 +261,7 @@ export async function POST(request: NextRequest) {
           submission_prompt: DEFAULT_SUBMISSION_PROMPT,
           participant_message: DEFAULT_PARTICIPANT_MESSAGE,
           daily_games: [],
+          display_scene: "lobby",
         })
         .select("*")
         .single();
@@ -326,6 +327,7 @@ export async function PATCH(request: NextRequest) {
           selected_objects: [],
           roulette_candidates: [],
           roulette_spun_at: null,
+          display_scene: "auto",
         })
         .eq("id", session.id)
         .select("*")
@@ -343,6 +345,7 @@ export async function PATCH(request: NextRequest) {
           show_results: false,
           roulette_candidates: [],
           roulette_spun_at: null,
+          display_scene: "auto",
         })
         .eq("id", session.id)
         .select("*")
@@ -393,6 +396,7 @@ export async function PATCH(request: NextRequest) {
           object_collection_open: false,
           roulette_candidates: rouletteCandidates,
           roulette_spun_at: spunAt,
+          display_scene: "auto",
         })
         .eq("id", session.id)
         .select("*")
@@ -407,8 +411,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     const updates: Record<string, boolean | string | number | DailyGame[] | string[] | null> = {};
-    if (typeof body.is_open === "boolean") updates.is_open = body.is_open;
-    if (typeof body.show_results === "boolean") updates.show_results = body.show_results;
+    if (typeof body.is_open === "boolean") {
+      updates.is_open = body.is_open;
+      if (body.is_open) updates.display_scene = "auto";
+    }
+    if (typeof body.show_results === "boolean") {
+      updates.show_results = body.show_results;
+      if (body.show_results) updates.display_scene = "auto";
+    }
     if (typeof body.object_collection_open === "boolean") {
       updates.object_collection_open = body.object_collection_open;
     }

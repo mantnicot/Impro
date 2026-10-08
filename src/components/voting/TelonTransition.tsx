@@ -3,8 +3,9 @@
 import { useEffect, useRef } from "react";
 import { Lottie } from "lottie-react";
 
-/** Mitad del telón (frames ~9–20 @60fps): momento seguro para cambiar el slide. */
-const MIDPOINT_MS = 220;
+/** Animación original ~0.5s; speed 0.25 → ~2s. Midpoint ~0.88s. */
+const PLAYBACK_SPEED = 0.25;
+const MIDPOINT_MS = 880;
 
 interface TelonTransitionProps {
   playKey: number;
@@ -37,6 +38,7 @@ export function TelonTransition({ playKey, onMidpoint, onComplete }: TelonTransi
         src="/lottie/transicion_telon.json"
         autoplay
         loop={false}
+        speed={PLAYBACK_SPEED}
         className="h-full w-full"
         style={{ width: "100%", height: "100%" }}
         rendererSettings={{ preserveAspectRatio: "xMidYMid slice" }}

@@ -331,35 +331,45 @@ function SceneContent({
   }
 
   if (scene === "results") {
-    const top = results.slice(0, 3);
     return (
-      <div>
+      <div className="max-h-[75vh] overflow-y-auto pr-1">
         <div className="text-center">
-          <p className="font-hand text-3xl text-tava-yellow">Ganadores de la noche</p>
-          <h1 className="mt-1 font-display text-6xl tracking-wide text-white sm:text-7xl">PODIO</h1>
+          <p className="font-hand text-3xl text-tava-yellow">Resultados de la noche</p>
+          <h1 className="mt-1 font-display text-6xl tracking-wide text-white sm:text-7xl">RANKING</h1>
         </div>
-        {top.length === 0 ? (
+        {results.length === 0 ? (
           <p className="mt-10 text-center text-xl text-white/60">Sin votos aun</p>
         ) : (
-          <div className="mt-10 grid grid-cols-1 items-end gap-4 md:grid-cols-3">
-            {top.map((r, index) => (
-              <motion.div
-                key={r.artist.id}
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.15 }}
-                className={`rounded-3xl border-4 px-4 py-6 text-center ${
-                  index === 0
-                    ? "border-tava-yellow bg-tava-yellow text-tava-blue md:min-h-[18rem]"
-                    : "border-white/30 bg-white/10 text-white md:min-h-[14rem]"
-                }`}
-              >
-                <p className="font-display text-4xl">{index + 1}</p>
-                <p className="mt-3 font-display text-3xl leading-tight sm:text-4xl">{r.artist.name}</p>
-                <p className="mt-4 font-display text-5xl">{r.totalPoints}</p>
-                <p className="mt-1 text-sm opacity-70">promedio {r.average.toFixed(1)}</p>
-              </motion.div>
-            ))}
+          <div className="mx-auto mt-8 grid max-w-4xl gap-3">
+            {results.map((r, index) => {
+              const topThree = index < 3;
+              return (
+                <motion.div
+                  key={r.artist.id}
+                  initial={{ opacity: 0, x: -24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: Math.min(index * 0.08, 0.8) }}
+                  className={`flex items-center gap-4 rounded-2xl border-4 px-4 py-4 ${
+                    index === 0
+                      ? "border-tava-yellow bg-tava-yellow text-tava-blue"
+                      : topThree
+                        ? "border-white/40 bg-white/15 text-white"
+                        : "border-white/20 bg-white/10 text-white"
+                  }`}
+                >
+                  <p className="w-14 shrink-0 font-display text-4xl sm:text-5xl">{index + 1}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-display text-3xl leading-tight sm:text-4xl">
+                      {r.artist.name}
+                    </p>
+                    <p className={`text-sm ${index === 0 ? "text-tava-blue/80" : "text-white/65"}`}>
+                      {r.voteCount} votos · promedio {r.average.toFixed(1)}
+                    </p>
+                  </div>
+                  <p className="shrink-0 font-display text-4xl sm:text-5xl">{r.totalPoints}</p>
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -367,26 +377,58 @@ function SceneContent({
   }
 
   if (scene === "games") {
+    const activeIndex = Math.max(0, Math.min((session.current_round ?? 1) - 1, Math.max(games.length - 1, 0)));
+    const list =
+      games.length > 0
+        ? games
+        : ([{ id: "x", name: "Pronto", description: "El admin cargara los juegos del dia" }] as DailyGame[]);
+
     return (
       <div>
         <div className="text-center">
-          <p className="font-hand text-3xl text-tava-yellow">Hoy jugamos</p>
-          <h1 className="mt-1 font-display text-6xl tracking-wide sm:text-7xl">JUEGOS</h1>
+          <p className="font-hand text-3xl text-tava-yellow">Reglas y juegos</p>
+          <h1 className="mt-1 font-display text-5xl tracking-wide sm:text-6xl">EN EL ACTO</h1>
         </div>
-        <div className="mx-auto mt-10 grid max-w-4xl gap-4">
-          {(games.length > 0 ? games : [{ id: "x", name: "Pronto", description: "El admin cargara los juegos" } as DailyGame]).map(
-            (game) => (
+
+        {session.participant_message?.trim() && (
+          <div className="mx-auto mt-6 max-w-4xl rounded-3xl border-4 border-tava-yellow/70 bg-white/10 px-6 py-5">
+            <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-tava-yellow">
+              Reglas / mensaje
+            </p>
+            <p className="mt-3 whitespace-pre-wrap text-center font-hand text-2xl leading-snug text-white sm:text-3xl">
+              {session.participant_message}
+            </p>
+          </div>
+        )}
+
+        <div className="mx-auto mt-8 grid max-w-4xl gap-4">
+          {list.map((game, index) => {
+            const active = games.length > 0 && index === activeIndex;
+            return (
               <div
                 key={game.id}
-                className="rounded-3xl border-4 border-tava-yellow bg-white/95 px-6 py-5 text-tava-blue"
+                className={`rounded-3xl border-4 px-6 py-5 ${
+                  active
+                    ? "border-tava-yellow bg-tava-yellow text-tava-blue shadow-[8px_8px_0_rgba(11,18,32,0.35)]"
+                    : "border-white/25 bg-white/10 text-white"
+                }`}
               >
-                <p className="font-display text-4xl tracking-wide">{game.name}</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-display text-4xl tracking-wide">{game.name}</p>
+                  {active && (
+                    <span className="rounded-full bg-tava-red px-3 py-1 text-xs font-black uppercase tracking-widest text-white">
+                      Juego activo · ronda {session.current_round}
+                    </span>
+                  )}
+                </div>
                 {game.description && (
-                  <p className="mt-2 font-hand text-2xl text-tava-red">{game.description}</p>
+                  <p className={`mt-2 font-hand text-2xl ${active ? "text-tava-red" : "text-tava-yellow"}`}>
+                    {game.description}
+                  </p>
                 )}
               </div>
-            )
-          )}
+            );
+          })}
         </div>
       </div>
     );

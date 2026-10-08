@@ -13,14 +13,14 @@ export const DISPLAY_SCENES = [
 export type DisplayScene = (typeof DISPLAY_SCENES)[number];
 
 export const DISPLAY_SCENE_LABELS: Record<DisplayScene, string> = {
-  auto: "Auto",
+  auto: "Auto (show)",
   lobby: "Lobby + QR",
   collecting: "Recibiendo",
   roulette: "Ruleta",
   winner: "Ganador",
   voting: "Voten",
   results: "Ranking",
-  games: "Juegos",
+  games: "Juegos / reglas",
   black: "Negro",
 };
 
@@ -29,10 +29,14 @@ export function isDisplayScene(value: unknown): value is DisplayScene {
 }
 
 export function resolveDisplayScene(value: unknown): DisplayScene {
-  return isDisplayScene(value) ? value : "auto";
+  return isDisplayScene(value) ? value : "lobby";
 }
 
-/** Escena efectiva en el proyector (auto sigue el estado del juego sin tocar celulares). */
+/**
+ * Escena efectiva en el proyector.
+ * - lobby: QR hasta que el admin arranque el show (auto) o fuerce otra escena.
+ * - auto: sigue el juego; en reposo muestra reglas + juegos del día.
+ */
 export function resolveEffectiveDisplayScene(session: {
   display_scene?: string | null;
   is_open?: boolean;
@@ -42,11 +46,13 @@ export function resolveEffectiveDisplayScene(session: {
   roulette_spun_at?: string | null;
 }): DisplayScene {
   const configured = resolveDisplayScene(session.display_scene);
+
+  if (configured === "lobby") return "lobby";
   if (configured !== "auto") return configured;
 
   if (session.show_results) return "results";
-  if (session.roulette_spun_at && (session.selected_objects?.length ?? 0) > 0) return "winner";
   if (session.object_collection_open) return "collecting";
   if (session.is_open) return "voting";
-  return "lobby";
+  if (session.roulette_spun_at && (session.selected_objects?.length ?? 0) > 0) return "winner";
+  return "games";
 }
