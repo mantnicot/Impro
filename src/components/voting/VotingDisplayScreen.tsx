@@ -377,64 +377,109 @@ function SceneContent({
   }
 
   if (scene === "games") {
-    const activeIndex = Math.max(0, Math.min((session.current_round ?? 1) - 1, Math.max(games.length - 1, 0)));
-    const list =
+    const activeIndex =
       games.length > 0
-        ? games
-        : ([{ id: "x", name: "Pronto", description: "El admin cargara los juegos del dia" }] as DailyGame[]);
+        ? Math.max(0, Math.min(session.active_game_index ?? 0, games.length - 1))
+        : 0;
+    const prev = games[activeIndex - 1] ?? null;
+    const current =
+      games[activeIndex] ??
+      ({ id: "x", name: "Pronto", description: "El admin cargara los juegos del dia" } as DailyGame);
+    const next = games[activeIndex + 1] ?? null;
 
     return (
-      <div>
+      <div className="mx-auto w-full max-w-5xl px-1">
         <div className="text-center">
-          <p className="font-hand text-3xl text-tava-yellow">Reglas y juegos</p>
-          <h1 className="mt-1 font-display text-5xl tracking-wide sm:text-6xl">EN EL ACTO</h1>
+          <p className="font-hand text-2xl text-tava-yellow sm:text-3xl">Orden del show</p>
+          <h1 className="mt-1 font-display text-4xl tracking-wide sm:text-5xl md:text-6xl">JUEGOS</h1>
+          {games.length > 0 && (
+            <p className="mt-2 text-sm font-bold text-white/60">
+              {activeIndex + 1} / {games.length}
+            </p>
+          )}
         </div>
 
         {session.participant_message?.trim() && (
-          <div className="mx-auto mt-6 max-w-4xl rounded-3xl border-4 border-tava-yellow/70 bg-white/10 px-6 py-5">
-            <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-tava-yellow">
-              Reglas / mensaje
+          <div className="mx-auto mt-4 max-w-3xl rounded-2xl border-2 border-tava-yellow/50 bg-white/10 px-4 py-3">
+            <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-tava-yellow">
+              Reglas
             </p>
-            <p className="mt-3 whitespace-pre-wrap text-center font-hand text-2xl leading-snug text-white sm:text-3xl">
+            <p className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap text-center font-hand text-lg leading-snug text-white/90 sm:text-xl">
               {session.participant_message}
             </p>
           </div>
         )}
 
-        <div className="mx-auto mt-8 grid max-w-4xl gap-4">
-          {list.map((game, index) => {
-            const active = games.length > 0 && index === activeIndex;
-            return (
-              <div
-                key={game.id}
-                className={`rounded-3xl border-4 px-6 py-5 ${
-                  active
-                    ? "border-tava-yellow bg-tava-yellow text-tava-blue shadow-[8px_8px_0_rgba(11,18,32,0.35)]"
-                    : "border-white/25 bg-white/10 text-white"
-                }`}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-display text-4xl tracking-wide">{game.name}</p>
-                  {active && (
-                    <span className="rounded-full bg-tava-red px-3 py-1 text-xs font-black uppercase tracking-widest text-white">
-                      Juego activo · ronda {session.current_round}
-                    </span>
-                  )}
-                </div>
-                {game.description && (
-                  <p className={`mt-2 font-hand text-2xl ${active ? "text-tava-red" : "text-tava-yellow"}`}>
-                    {game.description}
-                  </p>
-                )}
-              </div>
-            );
-          })}
+        <div className="mt-6 grid gap-3 sm:gap-4">
+          <GameLane
+            label="Anterior"
+            game={prev}
+            tone="prev"
+          />
+          <GameLane
+            label="En curso"
+            game={current}
+            tone="current"
+          />
+          <GameLane
+            label="Siguiente"
+            game={next}
+            tone="next"
+          />
         </div>
       </div>
     );
   }
 
   return null;
+}
+
+function GameLane({
+  label,
+  game,
+  tone,
+}: {
+  label: string;
+  game: DailyGame | null;
+  tone: "prev" | "current" | "next";
+}) {
+  if (!game) {
+    return (
+      <div className="rounded-2xl border border-dashed border-white/20 px-4 py-3 text-center text-sm text-white/35">
+        {label}: —
+      </div>
+    );
+  }
+
+  if (tone === "current") {
+    return (
+      <div className="rounded-3xl border-4 border-tava-yellow bg-tava-yellow px-4 py-5 text-tava-blue shadow-[8px_8px_0_rgba(11,18,32,0.35)] sm:px-6 sm:py-6">
+        <p className="text-center text-[10px] font-black uppercase tracking-[0.25em] text-tava-red sm:text-xs">
+          {label}
+        </p>
+        <p className="mt-1 text-center font-display text-3xl leading-tight tracking-wide sm:text-5xl md:text-6xl">
+          {game.name}
+        </p>
+        {game.description && (
+          <p className="mx-auto mt-2 max-w-3xl text-center font-hand text-xl text-tava-red sm:text-2xl">
+            {game.description}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/25 bg-white/10 px-4 py-3 text-white/80 sm:px-5">
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-tava-yellow/80">{label}</p>
+      <p className="mt-0.5 font-display text-xl leading-tight tracking-wide sm:text-2xl md:text-3xl">
+        {game.name}
+      </p>
+      {game.description && (
+        <p className="mt-1 line-clamp-2 font-hand text-base text-white/55 sm:text-lg">{game.description}</p>
+      )}
+    </div>
+  );
 }
 
 function StatBig({ label, value }: { label: string; value: number }) {

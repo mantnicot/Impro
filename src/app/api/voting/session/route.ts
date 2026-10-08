@@ -15,6 +15,7 @@ import {
   resolveSubmissionPrompt,
 } from "@/lib/voting/submission-prompt";
 import { resolveDisplayScene } from "@/lib/voting/display-scene";
+import { clampGameIndex } from "@/lib/voting/parse-games-paste";
 import type {
   Artist,
   DailyGame,
@@ -69,6 +70,10 @@ function normalizeSession(session: StoredSession): Omit<StoredSession, "admin_pi
     roulette_candidates: safeSession.roulette_candidates ?? [],
     roulette_spun_at: safeSession.roulette_spun_at ?? null,
     display_scene: resolveDisplayScene(safeSession.display_scene),
+    active_game_index: clampGameIndex(
+      Number(safeSession.active_game_index ?? 0),
+      parseDailyGames(safeSession.daily_games).length
+    ),
   };
 }
 
@@ -262,6 +267,7 @@ export async function POST(request: NextRequest) {
           participant_message: DEFAULT_PARTICIPANT_MESSAGE,
           daily_games: [],
           display_scene: "lobby",
+          active_game_index: 0,
         })
         .select("*")
         .single();
@@ -433,7 +439,17 @@ export async function PATCH(request: NextRequest) {
       updates.submission_prompt = resolveSubmissionPrompt(body.submission_prompt).slice(0, 160);
     }
     if (Array.isArray(body.daily_games)) {
-      updates.daily_games = parseDailyGames(body.daily_games);
+      const games = parseDailyGames(body.daily_games);
+      updates.daily_games = games;
+      const nextIndex =
+        typeof body.active_game_index === "number"
+          ? body.active_game_index
+          : session.active_game_index ?? 0;
+      updates.active_game_index = clampGameIndex(nextIndex, games.length);
+    }
+    if (typeof body.active_game_index === "number" && !Array.isArray(body.daily_games)) {
+      const games = parseDailyGames(session.daily_games);
+      updates.active_game_index = clampGameIndex(body.active_game_index, games.length);
     }
     if (typeof body.display_scene === "string") {
       updates.display_scene = resolveDisplayScene(body.display_scene);
@@ -453,10 +469,13 @@ export async function PATCH(request: NextRequest) {
     if (error) {
       if (isMissingColumnError(error.message)) {
         const needsDisplay = "display_scene" in updates;
+        const needsGameIndex = "active_game_index" in updates;
         return NextResponse.json(
           {
-            error: needsDisplay
-              ? "Falta la migracion del proyector. Ejecuta supabase/migration-display-scene.sql en Supabase."
+            error: needsGameIndex
+              ? "Falta la migracion del juego activo. Ejecuta supabase/migration-active-game-index.sql en Supabase."
+              : needsDisplay
+                ? "Falta la migracion del proyector. Ejecuta supabase/migration-display-scene.sql en Supabase."
               : "Falta una migracion en Supabase. Ejecuta supabase/migration-submission-prompt.sql (y migration-admin-panel.sql si aplica).",
           },
           { status: 500 }

@@ -15,6 +15,8 @@ import {
   type AvatarGender,
 } from "@/lib/voting/artist-style";
 import type { Artist, ArtistResult, DailyGame, VotingSession, VotingSummary } from "@/lib/voting/types";
+import { clampGameIndex, parseGamesFromPaste } from "@/lib/voting/parse-games-paste";
+import type { DisplayScene } from "@/lib/voting/display-scene";
 import { ArtistIdentityCard } from "./ArtistIdentityCard";
 import { LiveScoreboard } from "./LiveScoreboard";
 import { ShowWelcomeMessage } from "./ShowWelcomeMessage";
@@ -22,7 +24,6 @@ import { VotingResults } from "./VotingResults";
 import { DisplaySceneControls } from "./DisplaySceneControls";
 import { RoomQrCard } from "./RoomQrCard";
 import { WordRoulette } from "./WordRoulette";
-import type { DisplayScene } from "@/lib/voting/display-scene";
 
 type AdminStep = "sala" | "show" | "jugadores" | "salas";
 
@@ -78,6 +79,8 @@ export function VotingAdminPanel() {
   const [error, setError] = useState("");
   const [participantMessage, setParticipantMessage] = useState(DEFAULT_PARTICIPANT_MESSAGE);
   const [dailyGames, setDailyGames] = useState<DailyGame[]>([]);
+  const [activeGameIndex, setActiveGameIndex] = useState(0);
+  const [gamesPaste, setGamesPaste] = useState("");
   const [submissionLabel, setSubmissionLabel] = useState(DEFAULT_SUBMISSION_LABEL);
   const [submissionPrompt, setSubmissionPrompt] = useState(DEFAULT_SUBMISSION_PROMPT);
   const [configSaved, setConfigSaved] = useState("");
@@ -93,7 +96,9 @@ export function VotingAdminPanel() {
   const applySessionConfig = useCallback((nextSession: VotingSession | null | undefined) => {
     if (configTouchedRef.current || !nextSession) return;
     setParticipantMessage(nextSession.participant_message || DEFAULT_PARTICIPANT_MESSAGE);
-    setDailyGames(nextSession.daily_games ?? []);
+    const games = nextSession.daily_games ?? [];
+    setDailyGames(games);
+    setActiveGameIndex(clampGameIndex(nextSession.active_game_index ?? 0, games.length));
     setSubmissionLabel(nextSession.submission_label || DEFAULT_SUBMISSION_LABEL);
     setSubmissionPrompt(nextSession.submission_prompt || DEFAULT_SUBMISSION_PROMPT);
   }, []);
@@ -335,6 +340,7 @@ export function VotingAdminPanel() {
       {
         participant_message: participantMessage,
         daily_games: dailyGames,
+        active_game_index: clampGameIndex(activeGameIndex, dailyGames.length),
       },
       "save-config"
     );
@@ -342,7 +348,9 @@ export function VotingAdminPanel() {
     if (data?.session) {
       configTouchedRef.current = false;
       setParticipantMessage(data.session.participant_message || DEFAULT_PARTICIPANT_MESSAGE);
-      setDailyGames(data.session.daily_games ?? []);
+      const games = data.session.daily_games ?? [];
+      setDailyGames(games);
+      setActiveGameIndex(clampGameIndex(data.session.active_game_index ?? 0, games.length));
       setConfigSaved("Configuracion guardada");
       setTimeout(() => setConfigSaved(""), 2000);
       if (goNext) setStep("jugadores");
@@ -384,7 +392,50 @@ export function VotingAdminPanel() {
 
   const removeDailyGame = (id: string) => {
     configTouchedRef.current = true;
-    setDailyGames((prev) => prev.filter((game) => game.id !== id));
+    setDailyGames((prev) => {
+      const next = prev.filter((game) => game.id !== id);
+      setActiveGameIndex((index) => clampGameIndex(index, next.length));
+      return next;
+    });
+  };
+
+  const importGamesFromPaste = () => {
+    const parsed = parseGamesFromPaste(gamesPaste);
+    if (parsed.length === 0) {
+      setError("Pega juegos separados por ;  Ejemplo: Salva patria::reglas;ABC::letras");
+      return;
+    }
+    configTouchedRef.current = true;
+    setDailyGames(
+      parsed.map((game) => ({
+        id: crypto.randomUUID(),
+        name: game.name,
+        description: game.description,
+      }))
+    );
+    setActiveGameIndex(0);
+    setGamesPaste("");
+    setError("");
+  };
+
+  const setActiveGameAndSync = async (index: number) => {
+    const next = clampGameIndex(index, dailyGames.length);
+    setActiveGameIndex(next);
+    const data = await patchSession(
+      {
+        active_game_index: next,
+        display_scene: "auto",
+        ...(configTouchedRef.current ? { daily_games: dailyGames } : {}),
+      },
+      "active-game"
+    );
+    if (data?.session) {
+      configTouchedRef.current = false;
+      applySessionNow(data.session);
+      const games = data.session.daily_games ?? [];
+      setDailyGames(games);
+      setActiveGameIndex(clampGameIndex(data.session.active_game_index ?? next, games.length));
+    }
   };
 
   const drawObjects = async () => {
@@ -612,7 +663,9 @@ export function VotingAdminPanel() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="font-display text-lg font-bold text-gray-800">Juegos del dia</h2>
-                  <p className="text-xs text-gray-500">Nombre y descripcion para cada juego.</p>
+                  <p className="text-xs text-gray-500">
+                    Toca un juego para marcarlo activo. En el proyector se ve anterior / en curso / siguiente.
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -623,39 +676,101 @@ export function VotingAdminPanel() {
                 </button>
               </div>
 
-              <div className="mt-3 space-y-3">
+              <label className="mt-3 block text-xs font-black uppercase tracking-wide text-gray-500">
+                Pegar lista rapida
+              </label>
+              <textarea
+                value={gamesPaste}
+                onChange={(e) => setGamesPaste(e.target.value)}
+                rows={3}
+                placeholder="Salva patria::reglas del juego;Momento de votacion;Estatua::sin hablar"
+                className={`${fieldClass} mt-1 resize-y text-sm leading-relaxed`}
+              />
+              <p className="mt-1 text-[11px] text-gray-400">
+                Separa juegos con <span className="font-bold">;</span> y titulo/descripcion con{" "}
+                <span className="font-bold">::</span>
+              </p>
+              <button
+                type="button"
+                disabled={!gamesPaste.trim()}
+                onClick={importGamesFromPaste}
+                className="mt-2 min-h-10 w-full rounded-xl border border-tava-blue/20 bg-blue-50 text-sm font-bold text-tava-blue disabled:opacity-40"
+              >
+                Cargar juegos desde texto
+              </button>
+
+              {dailyGames.length > 0 && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={busyAction !== null || activeGameIndex <= 0}
+                    onClick={() => void setActiveGameAndSync(activeGameIndex - 1)}
+                    className="min-h-11 rounded-xl border border-gray-200 text-sm font-black text-gray-700 disabled:opacity-40"
+                  >
+                    ← Anterior
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busyAction !== null || activeGameIndex >= dailyGames.length - 1}
+                    onClick={() => void setActiveGameAndSync(activeGameIndex + 1)}
+                    className="min-h-11 rounded-xl bg-tava-yellow text-sm font-black text-tava-blue disabled:opacity-40"
+                  >
+                    Siguiente →
+                  </button>
+                </div>
+              )}
+
+              <div className="mt-3 max-h-[22rem] space-y-2 overflow-y-auto overscroll-contain pr-1">
                 {dailyGames.length === 0 && (
                   <p className="rounded-xl bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
-                    Todavia no hay juegos. Agrega los de esta noche.
+                    Todavia no hay juegos. Pegalos arriba o agrega uno.
                   </p>
                 )}
-                {dailyGames.map((game, index) => (
-                  <div key={game.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs font-black uppercase text-gray-400">Juego {index + 1}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeDailyGame(game.id)}
-                        className="min-h-8 px-2 text-xs font-bold text-red-500"
-                      >
-                        Quitar
-                      </button>
+                {dailyGames.map((game, index) => {
+                  const active = index === activeGameIndex;
+                  return (
+                    <div
+                      key={game.id}
+                      className={`rounded-xl border p-2.5 ${
+                        active
+                          ? "border-tava-yellow bg-yellow-50"
+                          : "border-gray-100 bg-gray-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={!!busyAction}
+                          onClick={() => void setActiveGameAndSync(index)}
+                          className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wide ${
+                            active ? "bg-tava-red text-white" : "bg-white text-gray-500"
+                          }`}
+                        >
+                          {active ? "En curso" : `#${index + 1}`}
+                        </button>
+                        <input
+                          value={game.name}
+                          onChange={(e) => updateDailyGame(game.id, { name: e.target.value })}
+                          placeholder="Nombre"
+                          className="min-h-10 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2.5 text-sm font-bold text-gray-900 outline-none focus:border-tava-purple"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeDailyGame(game.id)}
+                          className="shrink-0 px-2 text-xs font-bold text-red-500"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <input
+                        value={game.description}
+                        onChange={(e) => updateDailyGame(game.id, { description: e.target.value })}
+                        placeholder="Descripcion (opcional)"
+                        className="mt-1.5 min-h-9 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-xs text-gray-700 outline-none focus:border-tava-purple"
+                      />
                     </div>
-                    <input
-                      value={game.name}
-                      onChange={(e) => updateDailyGame(game.id, { name: e.target.value })}
-                      placeholder="Nombre del juego"
-                      className={fieldClass}
-                    />
-                    <textarea
-                      value={game.description}
-                      onChange={(e) => updateDailyGame(game.id, { description: e.target.value })}
-                      rows={3}
-                      placeholder="Descripcion, reglas o dinamica"
-                      className={`${fieldClass} mt-2 resize-y`}
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           </div>
