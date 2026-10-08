@@ -183,8 +183,8 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
           </div>
         </header>
 
-        <main className="flex min-h-0 flex-1 items-center justify-center">
-          <div className="w-full max-w-6xl">
+        <main className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+          <div className={`w-full ${visibleScene === "games" ? "h-full max-w-7xl" : "max-w-6xl"}`}>
             <SceneContent
               scene={visibleScene}
               session={session!}
@@ -386,47 +386,37 @@ function SceneContent({
       games[activeIndex] ??
       ({ id: "x", name: "Pronto", description: "El admin cargara los juegos del dia" } as DailyGame);
     const next = games[activeIndex + 1] ?? null;
+    const rules = session.participant_message?.trim() || "Bienvenidos al show.";
 
     return (
-      <div className="mx-auto w-full max-w-5xl px-1">
-        <div className="text-center">
-          <p className="font-hand text-2xl text-tava-yellow sm:text-3xl">Orden del show</p>
-          <h1 className="mt-1 font-display text-4xl tracking-wide sm:text-5xl md:text-6xl">JUEGOS</h1>
-          {games.length > 0 && (
-            <p className="mt-2 text-sm font-bold text-white/60">
-              {activeIndex + 1} / {games.length}
-            </p>
-          )}
-        </div>
-
-        {session.participant_message?.trim() && (
-          <div className="mx-auto mt-4 max-w-3xl rounded-2xl border-2 border-tava-yellow/50 bg-white/10 px-4 py-3">
-            <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-tava-yellow">
-              Reglas
-            </p>
-            <p className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap text-center font-hand text-lg leading-snug text-white/90 sm:text-xl">
-              {session.participant_message}
-            </p>
+      <div className="mx-auto grid h-full w-full max-w-7xl grid-cols-1 items-stretch gap-5 lg:grid-cols-[minmax(280px,34%)_1fr] lg:gap-8">
+        {/* Izquierda: control de juegos */}
+        <aside className="flex min-h-0 flex-col justify-center gap-3 lg:gap-4">
+          <div>
+            <p className="font-hand text-xl text-tava-yellow sm:text-2xl">Orden del show</p>
+            <h1 className="font-display text-4xl tracking-wide text-white sm:text-5xl">JUEGOS</h1>
+            {games.length > 0 && (
+              <p className="mt-1 text-sm font-bold text-white/55">
+                {activeIndex + 1} / {games.length}
+              </p>
+            )}
           </div>
-        )}
+          <GameLane label="Anterior" game={prev} tone="prev" />
+          <GameLane label="En curso" game={current} tone="current" />
+          <GameLane label="Siguiente" game={next} tone="next" />
+        </aside>
 
-        <div className="mt-6 grid gap-3 sm:gap-4">
-          <GameLane
-            label="Anterior"
-            game={prev}
-            tone="prev"
-          />
-          <GameLane
-            label="En curso"
-            game={current}
-            tone="current"
-          />
-          <GameLane
-            label="Siguiente"
-            game={next}
-            tone="next"
-          />
-        </div>
+        {/* Derecha: reglas grandes para proyector */}
+        <section className="flex min-h-0 flex-col justify-center rounded-[2rem] border-4 border-tava-yellow bg-white px-6 py-7 text-tava-blue shadow-[10px_10px_0_rgba(11,18,32,0.35)] sm:px-10 sm:py-10 lg:px-12">
+          <p className="text-center font-hand text-3xl text-tava-red sm:text-4xl">Reglas generales</p>
+          <h2 className="mt-1 text-center font-display text-5xl tracking-wide text-tava-blue sm:text-6xl md:text-7xl">
+            #TAVA
+          </h2>
+          <div className="mx-auto mt-4 h-1.5 w-24 rounded-full bg-tava-yellow sm:mt-6" />
+          <p className="mt-6 whitespace-pre-wrap text-left font-display text-2xl leading-snug tracking-wide text-tava-blue sm:text-3xl md:text-4xl md:leading-tight lg:text-[2.6rem] lg:leading-[1.15]">
+            {rules}
+          </p>
+        </section>
       </div>
     );
   }
@@ -445,7 +435,7 @@ function GameLane({
 }) {
   if (!game) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/20 px-4 py-3 text-center text-sm text-white/35">
+      <div className="rounded-2xl border border-dashed border-white/20 px-3 py-3 text-sm text-white/35">
         {label}: —
       </div>
     );
@@ -453,30 +443,24 @@ function GameLane({
 
   if (tone === "current") {
     return (
-      <div className="rounded-3xl border-4 border-tava-yellow bg-tava-yellow px-4 py-5 text-tava-blue shadow-[8px_8px_0_rgba(11,18,32,0.35)] sm:px-6 sm:py-6">
-        <p className="text-center text-[10px] font-black uppercase tracking-[0.25em] text-tava-red sm:text-xs">
-          {label}
-        </p>
-        <p className="mt-1 text-center font-display text-3xl leading-tight tracking-wide sm:text-5xl md:text-6xl">
+      <div className="rounded-2xl border-4 border-tava-yellow bg-tava-yellow px-4 py-4 text-tava-blue shadow-[6px_6px_0_rgba(11,18,32,0.35)] sm:px-5 sm:py-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-tava-red">{label}</p>
+        <p className="mt-1 font-display text-3xl leading-tight tracking-wide sm:text-4xl lg:text-5xl">
           {game.name}
         </p>
         {game.description && (
-          <p className="mx-auto mt-2 max-w-3xl text-center font-hand text-xl text-tava-red sm:text-2xl">
-            {game.description}
-          </p>
+          <p className="mt-1 line-clamp-3 font-hand text-lg text-tava-red sm:text-xl">{game.description}</p>
         )}
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-white/25 bg-white/10 px-4 py-3 text-white/80 sm:px-5">
+    <div className="rounded-2xl border border-white/25 bg-white/10 px-3 py-3 text-white/80 sm:px-4">
       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-tava-yellow/80">{label}</p>
-      <p className="mt-0.5 font-display text-xl leading-tight tracking-wide sm:text-2xl md:text-3xl">
-        {game.name}
-      </p>
+      <p className="mt-0.5 font-display text-xl leading-tight tracking-wide sm:text-2xl">{game.name}</p>
       {game.description && (
-        <p className="mt-1 line-clamp-2 font-hand text-base text-white/55 sm:text-lg">{game.description}</p>
+        <p className="mt-0.5 line-clamp-2 font-hand text-base text-white/55">{game.description}</p>
       )}
     </div>
   );
