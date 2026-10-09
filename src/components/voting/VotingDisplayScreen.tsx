@@ -18,6 +18,68 @@ interface VotingDisplayScreenProps {
   code: string;
 }
 
+function ProjectorChrome() {
+  const [fullscreen, setFullscreen] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setFullscreen(Boolean(document.fullscreenElement));
+    sync();
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch {
+      /* navegador bloqueó pantalla completa */
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void toggleFullscreen()}
+        className="fixed right-4 top-4 z-[100] flex min-h-10 items-center gap-2 rounded-xl border-2 border-tava-yellow bg-tava-blue/90 px-3 py-2 font-display text-xs uppercase tracking-wider text-tava-yellow shadow-[4px_4px_0_rgba(11,18,32,0.4)] backdrop-blur-sm transition hover:bg-tava-blue sm:text-sm"
+        title={fullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+      >
+        <svg
+          aria-hidden
+          viewBox="0 0 24 24"
+          className="h-5 w-5 shrink-0 fill-none stroke-current stroke-2"
+        >
+          {fullscreen ? (
+            <>
+              <path d="M9 9H5V5M15 9h4V5M15 15h4v4M9 15H5v4" />
+            </>
+          ) : (
+            <>
+              <path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4" />
+            </>
+          )}
+        </svg>
+        <span className="hidden sm:inline">{fullscreen ? "Salir" : "Pantalla completa"}</span>
+      </button>
+
+      <div
+        className="pointer-events-none fixed bottom-4 right-4 z-[100] sm:bottom-6 sm:right-6"
+        aria-hidden
+      >
+        <div className="rounded-2xl border-2 border-tava-yellow bg-white/95 p-2 shadow-[6px_6px_0_rgba(11,18,32,0.35)] sm:p-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-tava.jpg"
+            alt=""
+            className="h-12 w-12 object-contain opacity-90 sm:h-14 sm:w-14"
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
 const emptySummary: VotingSummary = {
   totalVotes: 0,
   currentRoundVotes: 0,
@@ -223,8 +285,10 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
         onComplete={handleTelonComplete}
       />
 
+      <ProjectorChrome />
+
       <div className="relative z-10 flex h-full flex-col px-6 py-5 sm:px-10 sm:py-8">
-        <header className="flex items-start justify-between gap-4">
+        <header className="flex items-start justify-between gap-4 pr-28 sm:pr-36">
           <ShowBrandTitle size="md" light className="items-start" />
           <div className="text-right">
             <p className="font-hand text-2xl text-tava-yellow sm:text-3xl">{session?.title}</p>

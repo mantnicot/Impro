@@ -85,10 +85,10 @@ export function WordRoulette({
   if (!open || !winner) return null;
 
   const wheelSize = stage
-    ? "h-[min(86vw,78vh)] w-[min(86vw,78vh)] max-h-[720px] max-w-[720px]"
+    ? "h-[min(43vw,39vh)] w-[min(43vw,39vh)] max-h-[360px] max-w-[360px]"
     : "h-64 w-64";
   const cardClass = stage
-    ? "w-full max-w-5xl overflow-hidden rounded-[2rem] border-4 border-tava-yellow bg-tava-blue p-6 text-white shadow-[12px_12px_0_rgba(11,18,32,0.45)] sm:p-10"
+    ? "w-full max-w-2xl overflow-hidden rounded-[2rem] border-4 border-tava-yellow bg-tava-blue p-5 text-white shadow-[12px_12px_0_rgba(11,18,32,0.45)] sm:p-7"
     : "w-full max-w-md overflow-hidden rounded-3xl border-4 border-tava-yellow bg-tava-blue p-5 text-white shadow-[10px_10px_0_rgba(11,18,32,0.45)]";
 
   return (
@@ -109,10 +109,10 @@ export function WordRoulette({
           className={cardClass}
         >
           <div className="text-center">
-            <p className={`font-display tracking-wide text-tava-yellow ${stage ? "text-5xl sm:text-6xl" : "text-3xl"}`}>
+            <p className={`font-display tracking-wide text-tava-yellow ${stage ? "text-4xl sm:text-5xl" : "text-3xl"}`}>
               RULETA
             </p>
-            <p className={`-mt-1 font-hand text-white ${stage ? "text-3xl" : "text-xl"}`}>#TAVA en el acto</p>
+            <p className={`-mt-1 font-hand text-white ${stage ? "text-2xl" : "text-xl"}`}>#TAVA en el acto</p>
           </div>
 
           <div className={`relative mx-auto mt-5 ${wheelSize}`}>
@@ -138,8 +138,8 @@ export function WordRoulette({
                 className={`font-display leading-tight tracking-wide ${
                   stage
                     ? displayWord.length > 28
-                      ? "text-2xl sm:text-3xl"
-                      : "text-4xl sm:text-5xl"
+                      ? "text-xl sm:text-2xl"
+                      : "text-3xl sm:text-4xl"
                     : displayWord.length > 40
                       ? "text-base sm:text-lg"
                       : displayWord.length > 24
@@ -155,7 +155,7 @@ export function WordRoulette({
 
           <motion.p
             animate={{ opacity: 1 }}
-            className={`mt-4 text-center font-hand text-tava-yellow ${stage ? "text-3xl" : "text-2xl"}`}
+            className={`mt-4 text-center font-hand text-tava-yellow ${stage ? "text-2xl" : "text-2xl"}`}
           >
             {phase === "spinning" ? "¡Girando a toda!" : `¡${label} elegido!`}
           </motion.p>
