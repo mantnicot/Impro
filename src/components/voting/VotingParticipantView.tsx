@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { clearSession, getSessionCode, getSessionId, getVoterId } from "@/lib/role-storage";
+import { detectGameModeHint, getActiveDailyGame } from "@/lib/voting/display-scene";
 import { formatSubmissionDisplay } from "@/lib/voting/submission-display";
 import type { Artist, ArtistResult, VotingSession } from "@/lib/voting/types";
 import { ArtistIdentityCard } from "./ArtistIdentityCard";
@@ -21,11 +22,19 @@ function rouletteStorageKey(sessionId: string) {
   return `tava-last-roulette-${sessionId}`;
 }
 
+function isObjectsGameLive(session: VotingSession): boolean {
+  if (session.object_collection_open) return true;
+  const hint = detectGameModeHint(getActiveDailyGame(session));
+  if (hint !== "objects") return false;
+  return !session.is_open && !session.show_results;
+}
+
 function ParticipantLayout({
   session,
   results,
   children,
   footer,
+  focusMode,
   rouletteOpen,
   rouletteItems,
   rouletteWinner,
@@ -35,6 +44,8 @@ function ParticipantLayout({
   results: ArtistResult[];
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /** Solo formulario / contenido del momento (sin mensaje del show ni ranking). */
+  focusMode?: boolean;
   rouletteOpen: boolean;
   rouletteItems: string[];
   rouletteWinner: string;
@@ -42,22 +53,26 @@ function ParticipantLayout({
 }) {
   const [messageOpen, setMessageOpen] = useState(true);
   const hasMessage = Boolean(session?.participant_message?.trim());
+  const showRoulette = rouletteOpen && session != null && isObjectsGameLive(session);
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
       <WordRoulette
         items={rouletteItems}
         winner={rouletteWinner}
-        open={rouletteOpen}
+        open={showRoulette}
         label={session?.submission_label || "Propuesta"}
         onComplete={onRouletteComplete}
       />
-      <DailyGamesFab games={session?.daily_games ?? []} />
+      <DailyGamesFab
+        games={session?.daily_games ?? []}
+        activeGameIndex={session?.active_game_index ?? 0}
+      />
 
-      {results.length > 0 && <LiveScoreboard results={results} compact />}
+      {!focusMode && results.length > 0 && <LiveScoreboard results={results} compact />}
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
-        {hasMessage && (
+        {hasMessage && !focusMode && (
           <section className="relative mx-3 mt-2 overflow-hidden rounded-2xl border-4 border-tava-yellow bg-white shadow-[4px_4px_0_rgba(11,18,32,0.25)] sm:mx-4 sm:mt-3">
             <div className="pointer-events-none absolute inset-0 bg-halftone-dots bg-halftone opacity-30" />
             <button
@@ -265,12 +280,29 @@ export function VotingParticipantView() {
   const [rouletteWinner, setRouletteWinner] = useState("");
 
   const maybeShowRoulette = useCallback((nextSession: VotingSession) => {
-    if (!nextSession.roulette_spun_at || !sessionId) return;
-    const winner = nextSession.selected_objects?.[0] ?? "";
-    if (!winner) return;
+    if (!sessionId) return;
 
-    const lastSeen = localStorage.getItem(rouletteStorageKey(sessionId));
-    if (lastSeen === nextSession.roulette_spun_at) return;
+    const spunAt = nextSession.roulette_spun_at;
+    if (!spunAt) {
+      setRouletteOpen(false);
+      return;
+    }
+
+    const winner = nextSession.selected_objects?.[0] ?? "";
+    const storageKey = rouletteStorageKey(sessionId);
+    const objectsLive = isObjectsGameLive(nextSession);
+
+    if (!objectsLive || nextSession.object_collection_open || !winner) {
+      localStorage.setItem(storageKey, spunAt);
+      setRouletteOpen(false);
+      return;
+    }
+
+    const lastSeen = localStorage.getItem(storageKey);
+    if (lastSeen === spunAt) {
+      setRouletteOpen(false);
+      return;
+    }
 
     const candidates =
       nextSession.roulette_candidates?.length > 0 ? nextSession.roulette_candidates : [winner];
@@ -332,6 +364,12 @@ export function VotingParticipantView() {
     setActiveArtistIndex((index) => Math.min(index, Math.max(artists.length - 1, 0)));
   }, [artists.length]);
 
+  useEffect(() => {
+    if (!session?.object_collection_open || !sessionId) return;
+    localStorage.removeItem(rouletteStorageKey(sessionId));
+    setRouletteOpen(false);
+  }, [session?.object_collection_open, sessionId]);
+
   const handleRouletteComplete = () => {
     if (session?.roulette_spun_at && sessionId) {
       localStorage.setItem(rouletteStorageKey(sessionId), session.roulette_spun_at);
@@ -354,7 +392,6 @@ export function VotingParticipantView() {
   const allVotesDone = artists.length > 0 && votedCount === artists.length;
   const allVotesReady = artists.length > 0 && missingArtists.length === 0;
   const round = session?.current_round ?? 1;
-  const selectedObjects = session?.selected_objects ?? [];
 
   const selectVote = (artistId: string, value: number) => {
     setPendingVotes((prev) => ({ ...prev, [artistId]: value }));
@@ -495,6 +532,7 @@ export function VotingParticipantView() {
       <ParticipantLayout
         session={session}
         results={results}
+        focusMode
         rouletteOpen={rouletteOpen}
         rouletteItems={rouletteItems}
         rouletteWinner={rouletteWinner}
@@ -511,6 +549,7 @@ export function VotingParticipantView() {
       <ParticipantLayout
         session={session}
         results={results}
+        focusMode
         footer={voteFooter}
         rouletteOpen={rouletteOpen}
         rouletteItems={rouletteItems}
@@ -551,10 +590,6 @@ export function VotingParticipantView() {
             </p>
           )}
         </section>
-
-        {selectedObjects.length > 0 && (
-          <SelectedObjects objects={selectedObjects} label={session?.submission_label || "Propuesta"} />
-        )}
 
         {artists.length === 0 ? (
           <p className="mt-6 text-center text-sm text-gray-500">El administrador aun no ha agregado jugadores.</p>
@@ -599,10 +634,13 @@ export function VotingParticipantView() {
     );
   }
 
+  const collecting = Boolean(session?.object_collection_open);
+
   return (
     <ParticipantLayout
       session={session}
       results={results}
+      focusMode={collecting}
       rouletteOpen={rouletteOpen}
       rouletteItems={rouletteItems}
       rouletteWinner={rouletteWinner}
@@ -623,10 +661,6 @@ export function VotingParticipantView() {
             : "Cuando el admin abra la recepcion o la votacion, esta pantalla cambiara sola."}
         </p>
       </section>
-
-      {selectedObjects.length > 0 && (
-        <SelectedObjects objects={selectedObjects} label={session?.submission_label || "Propuesta"} />
-      )}
 
       {session?.object_collection_open && (
         <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:mt-5 sm:p-4">
@@ -683,33 +717,6 @@ export function VotingParticipantView() {
       {error && <p className="mt-4 text-center text-sm text-red-500">{error}</p>}
       <ExitButton />
     </ParticipantLayout>
-  );
-}
-
-function SelectedObjects({ objects, label }: { objects: string[]; label: string }) {
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mt-4 rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 to-pink-50 p-3 shadow-sm sm:mt-5 sm:rounded-3xl sm:p-4"
-    >
-      <p className="text-center text-[10px] font-bold uppercase tracking-widest text-amber-700 sm:text-xs">
-        {label} sorteado
-      </p>
-      <div className="mt-2 grid gap-2 sm:mt-3">
-        {objects.map((objectName, index) => (
-          <motion.div
-            key={objectName}
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.12 }}
-            className="rounded-2xl bg-white px-4 py-3 text-center font-display text-lg font-black leading-snug text-tava-purple shadow-sm sm:text-xl"
-          >
-            {objectName}
-          </motion.div>
-        ))}
-      </div>
-    </motion.section>
   );
 }
 

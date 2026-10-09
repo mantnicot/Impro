@@ -6,6 +6,7 @@ import type { DailyGame } from "@/lib/voting/types";
 
 interface DailyGamesFabProps {
   games: DailyGame[];
+  activeGameIndex?: number;
 }
 
 const POS_KEY = "tava-games-fab-pos-v2";
@@ -28,7 +29,9 @@ function defaultPos(): Pos {
   return clampPos(window.innerWidth - FAB_SIZE - 12, 72);
 }
 
-export function DailyGamesFab({ games }: DailyGamesFabProps) {
+export function DailyGamesFab({ games, activeGameIndex = 0 }: DailyGamesFabProps) {
+  const safeActive =
+    games.length > 0 ? Math.max(0, Math.min(activeGameIndex, games.length - 1)) : 0;
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<Pos | null>(null);
   const drag = useRef({
@@ -162,27 +165,53 @@ export function DailyGamesFab({ games }: DailyGamesFabProps) {
               </div>
 
               <div className="max-h-[65dvh] space-y-3 overflow-y-auto bg-[radial-gradient(circle,rgba(26,58,130,0.06)_1px,transparent_1.2px)] bg-[length:8px_8px] p-3 sm:p-4">
-                {games.map((game, index) => (
-                  <motion.article
-                    key={game.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.04 }}
-                    className="rounded-2xl border-2 border-tava-blue/20 bg-white p-3 shadow-sm sm:p-4"
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tava-red font-display text-lg text-white">
-                        {index + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <h4 className="font-display text-xl tracking-wide text-tava-blue sm:text-2xl">
-                          {game.name}
-                        </h4>
-                        <p className="mt-1 font-hand text-lg leading-snug text-gray-700">{game.description}</p>
+                {games.map((game, index) => {
+                  const isActive = index === safeActive;
+                  return (
+                    <motion.article
+                      key={game.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.04 }}
+                      className={`rounded-2xl border-2 p-3 shadow-sm sm:p-4 ${
+                        isActive
+                          ? "border-green-500 bg-green-50 ring-2 ring-green-400/60"
+                          : "border-tava-blue/20 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-lg text-white ${
+                            isActive ? "bg-green-600" : "bg-tava-red"
+                          }`}
+                        >
+                          {index + 1}
+                        </span>
+                        <div className="min-w-0">
+                          {isActive && (
+                            <p className="text-[10px] font-black uppercase tracking-wider text-green-700">
+                              En curso
+                            </p>
+                          )}
+                          <h4
+                            className={`font-display text-xl tracking-wide sm:text-2xl ${
+                              isActive ? "text-green-900" : "text-tava-blue"
+                            }`}
+                          >
+                            {game.name}
+                          </h4>
+                          <p
+                            className={`mt-1 font-hand text-lg leading-snug ${
+                              isActive ? "text-green-900/80" : "text-gray-700"
+                            }`}
+                          >
+                            {game.description}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </motion.article>
-                ))}
+                    </motion.article>
+                  );
+                })}
               </div>
             </motion.div>
           </motion.div>
