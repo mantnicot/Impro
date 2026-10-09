@@ -495,6 +495,7 @@ export function VotingAdminPanel() {
         items={rouletteItems}
         winner={rouletteWinner}
         open={rouletteOpen}
+        autoDismissMs={2200}
         label={submissionLabel || session?.submission_label || "Propuesta"}
         onComplete={() => setRouletteOpen(false)}
       />

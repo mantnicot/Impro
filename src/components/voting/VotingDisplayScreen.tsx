@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ShowBrandTitle } from "@/components/ShowBrandTitle";
 import {
+  detectGameModeHint,
+  getActiveDailyGame,
   resolveEffectiveDisplayScene,
+  shouldShowStageRoulette,
   type DisplayScene,
 } from "@/lib/voting/display-scene";
 import type { ArtistResult, DailyGame, VotingSession, VotingSummary } from "@/lib/voting/types";
@@ -24,9 +27,11 @@ const emptySummary: VotingSummary = {
 };
 
 function sessionFingerprint(session: VotingSession): string {
+  const hint = detectGameModeHint(getActiveDailyGame(session));
   return [
     session.display_scene,
     session.active_game_index,
+    hint,
     session.is_open ? 1 : 0,
     session.show_results ? 1 : 0,
     session.object_collection_open ? 1 : 0,
@@ -102,23 +107,29 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
       setError("");
 
       const effective = resolveEffectiveDisplayScene(next);
+      const spunAt = next.roulette_spun_at;
+      const winner = next.selected_objects?.[0] ?? "";
+      const allowRoulette = shouldShowStageRoulette(next);
+
       if (!firstSceneReady.current) {
         firstSceneReady.current = true;
         setVisibleScene(effective);
         visibleSceneRef.current = effective;
+        // No re-reproduce un sorteo viejo al abrir el proyector
+        if (spunAt) lastSpinRef.current = spunAt;
       } else if (changed) {
         applySceneChange(effective);
       }
 
-      const spunAt = next.roulette_spun_at;
-      const winner = next.selected_objects?.[0] ?? "";
-      if (spunAt && winner && lastSpinRef.current !== spunAt) {
+      if (spunAt && winner && allowRoulette && lastSpinRef.current !== spunAt) {
         lastSpinRef.current = spunAt;
         const candidates =
           next.roulette_candidates?.length > 0 ? next.roulette_candidates : [winner];
         setRouletteItems(candidates);
         setRouletteWinner(winner);
         setRouletteOpen(true);
+      } else if (!allowRoulette) {
+        setRouletteOpen(false);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -143,20 +154,6 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [refresh]);
-
-  useEffect(() => {
-    if (!rouletteOpen) return;
-    const t = window.setTimeout(() => setRouletteOpen(false), 4200);
-    return () => window.clearTimeout(t);
-  }, [rouletteOpen, rouletteWinner]);
-
-  useEffect(() => {
-    if (!session) return;
-    const effective = resolveEffectiveDisplayScene(session);
-    if (effective !== "winner" && effective !== "roulette" && rouletteOpen) {
-      setRouletteOpen(false);
-    }
-  }, [session, rouletteOpen]);
 
   const handleTelonMidpoint = useCallback(() => {
     if (pendingSceneRef.current) {
@@ -214,6 +211,8 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
         items={rouletteItems}
         winner={rouletteWinner}
         open={rouletteOpen}
+        stage
+        autoDismissMs={2200}
         label={session?.submission_label || "Propuesta"}
         onComplete={() => setRouletteOpen(false)}
       />
@@ -236,9 +235,17 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
         </header>
 
         <main className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
-          <div className={`w-full ${visibleScene === "games" ? "h-full max-w-7xl" : "max-w-6xl"}`}>
+          <div
+            className={`w-full ${
+              visibleScene === "general" || visibleScene === "games" || visibleScene === "results"
+                ? "h-full max-w-7xl"
+                : "max-w-6xl"
+            }`}
+          >
             <SceneContent
-              scene={visibleScene}
+              scene={
+                visibleScene === "games" || visibleScene === "results" ? "general" : visibleScene
+              }
               session={session!}
               summary={summary}
               results={results}
@@ -382,53 +389,7 @@ function SceneContent({
     );
   }
 
-  if (scene === "results") {
-    return (
-      <div className="max-h-[75vh] overflow-y-auto pr-1">
-        <div className="text-center">
-          <p className="font-hand text-3xl text-tava-yellow">Resultados de la noche</p>
-          <h1 className="mt-1 font-display text-6xl tracking-wide text-white sm:text-7xl">RANKING</h1>
-        </div>
-        {results.length === 0 ? (
-          <p className="mt-10 text-center text-xl text-white/60">Sin votos aun</p>
-        ) : (
-          <div className="mx-auto mt-8 grid max-w-4xl gap-3">
-            {results.map((r, index) => {
-              const topThree = index < 3;
-              return (
-                <motion.div
-                  key={r.artist.id}
-                  initial={{ opacity: 0, x: -24 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: Math.min(index * 0.08, 0.8) }}
-                  className={`flex items-center gap-4 rounded-2xl border-4 px-4 py-4 ${
-                    index === 0
-                      ? "border-tava-yellow bg-tava-yellow text-tava-blue"
-                      : topThree
-                        ? "border-white/40 bg-white/15 text-white"
-                        : "border-white/20 bg-white/10 text-white"
-                  }`}
-                >
-                  <p className="w-14 shrink-0 font-display text-4xl sm:text-5xl">{index + 1}</p>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-display text-3xl leading-tight sm:text-4xl">
-                      {r.artist.name}
-                    </p>
-                    <p className={`text-sm ${index === 0 ? "text-tava-blue/80" : "text-white/65"}`}>
-                      {r.voteCount} votos · promedio {r.average.toFixed(1)}
-                    </p>
-                  </div>
-                  <p className="shrink-0 font-display text-4xl sm:text-5xl">{r.totalPoints}</p>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (scene === "games") {
+  if (scene === "general" || scene === "games" || scene === "results" || scene === "auto") {
     const activeIndex =
       games.length > 0
         ? Math.max(0, Math.min(session.active_game_index ?? 0, games.length - 1))
@@ -438,84 +399,84 @@ function SceneContent({
       games[activeIndex] ??
       ({ id: "x", name: "Pronto", description: "El admin cargara los juegos del dia" } as DailyGame);
     const next = games[activeIndex + 1] ?? null;
-    const rules = session.participant_message?.trim() || "Bienvenidos al show.";
+    const rules = session.participant_message?.trim() || "";
+    const topResults = results.slice(0, 6);
 
     return (
-      <div className="mx-auto grid h-full w-full max-w-7xl grid-cols-1 items-stretch gap-5 lg:grid-cols-[minmax(280px,34%)_1fr] lg:gap-8">
-        {/* Izquierda: control de juegos */}
-        <aside className="flex min-h-0 flex-col justify-center gap-3 lg:gap-4">
+      <div className="mx-auto grid h-full w-full max-w-7xl grid-cols-1 gap-4 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6">
+        <section className="flex min-h-0 flex-col justify-center gap-3">
           <div>
-            <p className="font-hand text-xl text-tava-yellow sm:text-2xl">Orden del show</p>
-            <h1 className="font-display text-4xl tracking-wide text-white sm:text-5xl">JUEGOS</h1>
+            <p className="font-hand text-2xl text-tava-yellow sm:text-3xl">{session.title}</p>
+            <h1 className="font-display text-4xl tracking-wide text-white sm:text-5xl">GENERAL</h1>
             {games.length > 0 && (
               <p className="mt-1 text-sm font-bold text-white/55">
-                {activeIndex + 1} / {games.length}
+                Juego {activeIndex + 1} / {games.length}
               </p>
             )}
           </div>
-          <GameLane label="Anterior" game={prev} tone="prev" />
-          <GameLane label="En curso" game={current} tone="current" />
-          <GameLane label="Siguiente" game={next} tone="next" />
-        </aside>
 
-        {/* Derecha: reglas grandes para proyector */}
-        <section className="flex min-h-0 flex-col justify-center rounded-[2rem] border-4 border-tava-yellow bg-white px-6 py-7 text-tava-blue shadow-[10px_10px_0_rgba(11,18,32,0.35)] sm:px-10 sm:py-10 lg:px-12">
-          <p className="text-center font-hand text-3xl text-tava-red sm:text-4xl">Reglas generales</p>
-          <h2 className="mt-1 text-center font-display text-5xl tracking-wide text-tava-blue sm:text-6xl md:text-7xl">
-            #TAVA
-          </h2>
-          <div className="mx-auto mt-4 h-1.5 w-24 rounded-full bg-tava-yellow sm:mt-6" />
-          <p className="mt-6 whitespace-pre-wrap text-left font-display text-2xl leading-snug tracking-wide text-tava-blue sm:text-3xl md:text-4xl md:leading-tight lg:text-[2.6rem] lg:leading-[1.15]">
-            {rules}
-          </p>
+          <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/5 px-4 py-3 opacity-45 blur-[1px]">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Anterior</p>
+            <p className="font-display text-2xl text-white/70">{prev?.name ?? "—"}</p>
+          </div>
+
+          <div className="rounded-3xl border-4 border-tava-yellow bg-tava-yellow px-5 py-5 text-tava-blue shadow-[8px_8px_0_rgba(11,18,32,0.35)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-tava-red">En curso</p>
+            <p className="mt-1 font-display text-4xl leading-tight tracking-wide sm:text-5xl">
+              {current.name}
+            </p>
+            {current.description && (
+              <p className="mt-2 font-hand text-xl text-tava-red sm:text-2xl">{current.description}</p>
+            )}
+          </div>
+
+          <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/5 px-4 py-3 opacity-45 blur-[1px]">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Siguiente</p>
+            <p className="font-display text-2xl text-white/70">{next?.name ?? "—"}</p>
+          </div>
+        </section>
+
+        <section className="flex min-h-0 flex-col gap-4">
+          {rules && (
+            <div className="rounded-3xl border-4 border-tava-yellow bg-white px-5 py-5 text-tava-blue shadow-[8px_8px_0_rgba(11,18,32,0.3)]">
+              <p className="font-hand text-2xl text-tava-red">Info del show</p>
+              <p className="mt-2 max-h-[28vh] overflow-y-auto whitespace-pre-wrap font-display text-xl leading-snug sm:text-2xl">
+                {rules}
+              </p>
+            </div>
+          )}
+
+          <div className="min-h-0 flex-1 rounded-3xl border border-white/20 bg-white/10 px-4 py-4">
+            <p className="text-center font-hand text-2xl text-tava-yellow">Ranking</p>
+            {topResults.length === 0 ? (
+              <p className="mt-6 text-center text-white/50">Sin votos aun</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {topResults.map((r, index) => (
+                  <div
+                    key={r.artist.id}
+                    className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${
+                      index === 0
+                        ? "bg-tava-yellow text-tava-blue"
+                        : "bg-white/10 text-white"
+                    }`}
+                  >
+                    <span className="w-8 font-display text-2xl">{index + 1}</span>
+                    <span className="min-w-0 flex-1 truncate font-display text-xl sm:text-2xl">
+                      {r.artist.name}
+                    </span>
+                    <span className="font-display text-2xl">{r.totalPoints}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
       </div>
     );
   }
 
   return null;
-}
-
-function GameLane({
-  label,
-  game,
-  tone,
-}: {
-  label: string;
-  game: DailyGame | null;
-  tone: "prev" | "current" | "next";
-}) {
-  if (!game) {
-    return (
-      <div className="rounded-2xl border border-dashed border-white/20 px-3 py-3 text-sm text-white/35">
-        {label}: —
-      </div>
-    );
-  }
-
-  if (tone === "current") {
-    return (
-      <div className="rounded-2xl border-4 border-tava-yellow bg-tava-yellow px-4 py-4 text-tava-blue shadow-[6px_6px_0_rgba(11,18,32,0.35)] sm:px-5 sm:py-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-tava-red">{label}</p>
-        <p className="mt-1 font-display text-3xl leading-tight tracking-wide sm:text-4xl lg:text-5xl">
-          {game.name}
-        </p>
-        {game.description && (
-          <p className="mt-1 line-clamp-3 font-hand text-lg text-tava-red sm:text-xl">{game.description}</p>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-2xl border border-white/25 bg-white/10 px-3 py-3 text-white/80 sm:px-4">
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-tava-yellow/80">{label}</p>
-      <p className="mt-0.5 font-display text-xl leading-tight tracking-wide sm:text-2xl">{game.name}</p>
-      {game.description && (
-        <p className="mt-0.5 line-clamp-2 font-hand text-base text-white/55">{game.description}</p>
-      )}
-    </div>
-  );
 }
 
 function StatBig({ label, value }: { label: string; value: number }) {
