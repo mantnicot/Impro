@@ -23,6 +23,19 @@ const emptySummary: VotingSummary = {
   objectSubmissionCount: 0,
 };
 
+function sessionFingerprint(session: VotingSession): string {
+  return [
+    session.display_scene,
+    session.active_game_index,
+    session.is_open ? 1 : 0,
+    session.show_results ? 1 : 0,
+    session.object_collection_open ? 1 : 0,
+    session.roulette_spun_at ?? "",
+    session.selected_objects?.[0] ?? "",
+    (session.daily_games ?? []).length,
+  ].join("|");
+}
+
 export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
   const [session, setSession] = useState<VotingSession | null>(null);
   const [results, setResults] = useState<ArtistResult[]>([]);
@@ -35,26 +48,67 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
   const [visibleScene, setVisibleScene] = useState<DisplayScene>("lobby");
   const [telonKey, setTelonKey] = useState(0);
   const [telonPlaying, setTelonPlaying] = useState(false);
+
   const lastSpinRef = useRef<string | null>(null);
   const firstSceneReady = useRef(false);
   const pendingSceneRef = useRef<DisplayScene | null>(null);
+  const visibleSceneRef = useRef<DisplayScene>("lobby");
+  const telonPlayingRef = useRef(false);
+  const fingerprintRef = useRef("");
+  const sessionRef = useRef<VotingSession | null>(null);
 
   useEffect(() => {
     setJoinUrl(`${window.location.origin}/?join=${encodeURIComponent(code)}`);
   }, [code]);
 
+  useEffect(() => {
+    visibleSceneRef.current = visibleScene;
+  }, [visibleScene]);
+
+  useEffect(() => {
+    telonPlayingRef.current = telonPlaying;
+  }, [telonPlaying]);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  const applySceneChange = useCallback((nextScene: DisplayScene) => {
+    // Mismo tipo de escena (ej. solo cambia el juego activo): actualiza sin telón.
+    if (nextScene === visibleSceneRef.current) return;
+    pendingSceneRef.current = nextScene;
+    if (telonPlayingRef.current) return;
+    setTelonPlaying(true);
+    telonPlayingRef.current = true;
+    setTelonKey((key) => key + 1);
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
       const res = await fetch(
-        `/api/voting/session?code=${encodeURIComponent(code)}&includeResults=true`
+        `/api/voting/session?code=${encodeURIComponent(code)}&includeResults=true`,
+        { cache: "no-store" }
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error");
       const next = data.session as VotingSession;
+      const fp = sessionFingerprint(next);
+      const changed = fp !== fingerprintRef.current;
+      fingerprintRef.current = fp;
+
       setSession(next);
       setResults(data.results ?? []);
       setSummary(data.summary ?? emptySummary);
       setError("");
+
+      const effective = resolveEffectiveDisplayScene(next);
+      if (!firstSceneReady.current) {
+        firstSceneReady.current = true;
+        setVisibleScene(effective);
+        visibleSceneRef.current = effective;
+      } else if (changed) {
+        applySceneChange(effective);
+      }
 
       const spunAt = next.roulette_spun_at;
       const winner = next.selected_objects?.[0] ?? "";
@@ -69,7 +123,7 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     }
-  }, [code]);
+  }, [code, applySceneChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +132,7 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
       void refresh();
     };
     tick();
-    const t = window.setInterval(tick, 2500);
+    const t = window.setInterval(tick, 1000);
     const onVisibility = () => {
       if (!document.hidden) tick();
     };
@@ -90,45 +144,43 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
     };
   }, [refresh]);
 
-  // En proyector no hace falta tocar: la ruleta cierra sola tras el ganador.
   useEffect(() => {
     if (!rouletteOpen) return;
-    const t = window.setTimeout(() => setRouletteOpen(false), 3800);
+    const t = window.setTimeout(() => setRouletteOpen(false), 4200);
     return () => window.clearTimeout(t);
   }, [rouletteOpen, rouletteWinner]);
 
-  const scene = useMemo(
-    () => (session ? resolveEffectiveDisplayScene(session) : "lobby"),
-    [session]
-  );
-
   useEffect(() => {
     if (!session) return;
-    if (!firstSceneReady.current) {
-      firstSceneReady.current = true;
-      setVisibleScene(scene);
-      return;
+    const effective = resolveEffectiveDisplayScene(session);
+    if (effective !== "winner" && effective !== "roulette" && rouletteOpen) {
+      setRouletteOpen(false);
     }
-    if (scene === visibleScene) return;
-    pendingSceneRef.current = scene;
-    if (telonPlaying) return;
-    setTelonPlaying(true);
-    setTelonKey((key) => key + 1);
-  }, [scene, session, visibleScene, telonPlaying]);
+  }, [session, rouletteOpen]);
 
   const handleTelonMidpoint = useCallback(() => {
     if (pendingSceneRef.current) {
       setVisibleScene(pendingSceneRef.current);
+      visibleSceneRef.current = pendingSceneRef.current;
     }
   }, []);
 
   const handleTelonComplete = useCallback(() => {
     if (pendingSceneRef.current) {
       setVisibleScene(pendingSceneRef.current);
+      visibleSceneRef.current = pendingSceneRef.current;
     }
+    const pending = pendingSceneRef.current;
     pendingSceneRef.current = null;
     setTelonPlaying(false);
-  }, []);
+    telonPlayingRef.current = false;
+
+    const latestSession = sessionRef.current;
+    if (pending && latestSession) {
+      const latest = resolveEffectiveDisplayScene(latestSession);
+      if (latest !== pending) applySceneChange(latest);
+    }
+  }, [applySceneChange]);
 
   const qrSrc = useMemo(() => {
     if (!joinUrl) return "";

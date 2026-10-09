@@ -25,7 +25,7 @@ import { DisplaySceneControls } from "./DisplaySceneControls";
 import { RoomQrCard } from "./RoomQrCard";
 import { WordRoulette } from "./WordRoulette";
 
-type AdminStep = "sala" | "show" | "jugadores" | "salas";
+type AdminStep = "control" | "sala" | "show" | "jugadores" | "salas";
 
 interface SessionListItem {
   id: string;
@@ -39,10 +39,11 @@ interface SessionListItem {
 }
 
 const STEPS: { id: AdminStep; number: string; label: string }[] = [
-  { id: "sala", number: "1", label: "Sala" },
-  { id: "show", number: "2", label: "Show" },
-  { id: "jugadores", number: "3", label: "Jugadores" },
-  { id: "salas", number: "4", label: "Salas" },
+  { id: "control", number: "1", label: "Control" },
+  { id: "sala", number: "2", label: "Sala" },
+  { id: "show", number: "3", label: "Prep" },
+  { id: "jugadores", number: "4", label: "Cast" },
+  { id: "salas", number: "5", label: "Salas" },
 ];
 
 function adminHeaders() {
@@ -88,7 +89,7 @@ export function VotingAdminPanel() {
   const [rouletteOpen, setRouletteOpen] = useState(false);
   const [rouletteItems, setRouletteItems] = useState<string[]>([]);
   const [rouletteWinner, setRouletteWinner] = useState("");
-  const [step, setStep] = useState<AdminStep>("sala");
+  const [step, setStep] = useState<AdminStep>("control");
   const [allSessions, setAllSessions] = useState<SessionListItem[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
   const configTouchedRef = useRef(false);
@@ -138,7 +139,9 @@ export function VotingAdminPanel() {
       void refresh();
     };
     tick();
-    const t = window.setInterval(tick, 8000);
+    // Control en vivo: refresco más frecuente; prep puede esperar.
+    const interval = step === "control" ? 3000 : 8000;
+    const t = window.setInterval(tick, interval);
     const onVisibility = () => {
       if (!document.hidden) tick();
     };
@@ -148,7 +151,7 @@ export function VotingAdminPanel() {
       window.clearInterval(t);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [refresh]);
+  }, [refresh, step]);
 
   const refreshRooms = useCallback(async () => {
     setRoomsLoading(true);
@@ -497,7 +500,7 @@ export function VotingAdminPanel() {
       />
 
       <div className="shrink-0 px-3 pt-1 sm:px-4">
-        <div className="grid grid-cols-4 gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
+        <div className="grid grid-cols-5 gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
           {STEPS.map((item) => {
             const active = step === item.id;
             return (
@@ -505,14 +508,14 @@ export function VotingAdminPanel() {
                 key={item.id}
                 type="button"
                 onClick={() => setStep(item.id)}
-                className={`min-h-11 rounded-xl px-1 py-2 text-center transition sm:px-2 ${
+                className={`min-h-11 rounded-xl px-0.5 py-2 text-center transition sm:px-1 ${
                   active ? "bg-tava-purple text-white shadow-sm" : "text-gray-500"
                 }`}
               >
-                <p className="text-[9px] font-black uppercase tracking-widest opacity-80 sm:text-[10px]">
+                <p className="text-[8px] font-black uppercase tracking-widest opacity-80 sm:text-[10px]">
                   {item.number}
                 </p>
-                <p className="text-[10px] font-black sm:text-xs">{item.label}</p>
+                <p className="text-[9px] font-black sm:text-[11px]">{item.label}</p>
               </button>
             );
           })}
@@ -520,15 +523,27 @@ export function VotingAdminPanel() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-4">
-        {liveResults.length > 0 && step !== "show" && step !== "salas" && (
+        {liveResults.length > 0 && step !== "show" && step !== "salas" && step !== "control" && (
           <div className="mb-3">
             <LiveScoreboard results={liveResults} compact />
           </div>
         )}
 
-        {step === "sala" && session && (
+        {step === "control" && session && (
           <div className="space-y-3">
-            <RoomQrCard code={session.code} />
+            <section className="rounded-2xl border-4 border-tava-yellow bg-white p-4 shadow-sm">
+              <p className="font-hand text-lg text-tava-red">En vivo</p>
+              <h2 className="font-display text-2xl tracking-wide text-tava-blue">CONTROL DEL SHOW</h2>
+              <p className="mt-1 text-xs text-gray-500">
+                Aqui manejas la TV y el ritmo del show sin tocar la prep de contenido.
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <StatCard label="Ronda" value={round} />
+                <StatCard label="Votos" value={summary.currentRoundVotes} />
+                <StatCard label="Propuestas" value={summary.objectSubmissionCount} />
+                <StatCard label="Estado" value={statusCopy} />
+              </div>
+            </section>
 
             <DisplaySceneControls
               session={session}
@@ -538,27 +553,34 @@ export function VotingAdminPanel() {
               }}
             />
 
-            <section className="rounded-2xl border border-tava-purple/30 bg-white p-4 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Codigo de sala</p>
-                  <p className="font-display text-3xl font-black tracking-widest text-tava-purple">{session.code}</p>
-                  <p className="mt-1 text-sm text-gray-600">{session.title}</p>
-                </div>
-                <div className="rounded-2xl bg-purple-50 px-4 py-3 text-right">
-                  <p className="text-xs font-bold uppercase tracking-widest text-tava-purple">Estado</p>
-                  <p className="font-display text-base font-black text-gray-800">{statusCopy}</p>
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <StatCard label="Ronda" value={round} />
-                <StatCard label="Votos" value={summary.currentRoundVotes} />
-                <StatCard label="Votantes" value={summary.currentRoundParticipantCount} />
-                <StatCard
-                  label="Progreso"
-                  value={`${possibleVotes ? Math.round((summary.currentRoundVotes / possibleVotes) * 100) : 0}%`}
-                />
+            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <h2 className="font-display text-lg font-bold text-gray-800">Juegos en curso</h2>
+              <p className="text-xs text-gray-500">
+                {dailyGames[activeGameIndex]?.name
+                  ? `Ahora: ${dailyGames[activeGameIndex]!.name}`
+                  : "Sin juegos cargados (ve a Prep)."}
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={!!busyAction || activeGameIndex <= 0 || dailyGames.length === 0}
+                  onClick={() => void setActiveGameAndSync(activeGameIndex - 1)}
+                  className="min-h-12 rounded-xl border border-gray-200 text-sm font-black text-gray-700 disabled:opacity-40"
+                >
+                  ← Anterior
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    !!busyAction ||
+                    dailyGames.length === 0 ||
+                    activeGameIndex >= dailyGames.length - 1
+                  }
+                  onClick={() => void setActiveGameAndSync(activeGameIndex + 1)}
+                  className="min-h-12 rounded-xl bg-tava-yellow text-sm font-black text-tava-blue disabled:opacity-40"
+                >
+                  Siguiente →
+                </button>
               </div>
             </section>
 
@@ -591,28 +613,63 @@ export function VotingAdminPanel() {
                 >
                   Publicar podio y ranking
                 </button>
-                {session && (
-                  <button
-                    type="button"
-                    disabled={!!busyAction}
-                    onClick={() =>
-                      void deleteRoom({
-                        id: session.id,
-                        code: session.code,
-                        title: session.title,
-                        is_open: session.is_open,
-                        show_results: session.show_results,
-                        current_round: session.current_round,
-                        object_collection_open: session.object_collection_open,
-                        created_at: session.created_at,
-                      })
-                    }
-                    className="min-h-12 rounded-xl border border-red-200 bg-red-50 text-sm font-bold text-red-600 disabled:opacity-50"
-                  >
-                    Borrar esta sala
-                  </button>
-                )}
               </div>
+            </section>
+
+            <section className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-lg font-bold text-gray-800">
+                    Sorteo de {submissionLabel || "propuestas"}
+                  </h2>
+                  <p className="text-xs text-gray-500">Abrir / cerrar recepcion y generar ruleta.</p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${
+                    session.object_collection_open ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  {session.object_collection_open ? "Abierto" : "Cerrado"}
+                </span>
+              </div>
+              {selectedObjects.length > 0 && (
+                <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-center font-display text-lg font-black text-amber-900">
+                  {selectedObjects[0]}
+                </div>
+              )}
+              <div className="mt-3 grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  disabled={!!busyAction}
+                  onClick={() => void patchSession({ action: "open_objects" }, "open-objects")}
+                  className="min-h-12 rounded-xl border-2 border-green-500 bg-green-50 text-sm font-bold text-green-700 disabled:opacity-50"
+                >
+                  Activar recibir palabras
+                </button>
+                <button
+                  type="button"
+                  disabled={!!busyAction}
+                  onClick={() => void patchSession({ action: "close_objects" }, "close-objects")}
+                  className="min-h-12 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-700 disabled:opacity-50"
+                >
+                  Cerrar recepcion
+                </button>
+                <button
+                  type="button"
+                  disabled={!!busyAction || summary.objectSubmissionCount === 0}
+                  onClick={() => void drawObjects()}
+                  className="min-h-12 rounded-xl bg-amber-500 text-sm font-bold text-white disabled:opacity-40"
+                >
+                  Generar ruleta
+                </button>
+              </div>
+              {summary.objectSubmissionCount > 0 && (
+                <p className="mt-2 text-center text-xs font-bold text-gray-500">
+                  {summary.objectSubmissionCount} propuesta
+                  {summary.objectSubmissionCount !== 1 ? "s" : ""} recibida
+                  {summary.objectSubmissionCount !== 1 ? "s" : ""}
+                </p>
+              )}
             </section>
 
             {liveResults.length > 0 && (
@@ -623,6 +680,56 @@ export function VotingAdminPanel() {
                 </div>
               </section>
             )}
+          </div>
+        )}
+
+        {step === "sala" && session && (
+          <div className="space-y-3">
+            <RoomQrCard code={session.code} />
+
+            <section className="rounded-2xl border border-tava-purple/30 bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Codigo de sala</p>
+                  <p className="font-display text-3xl font-black tracking-widest text-tava-purple">{session.code}</p>
+                  <p className="mt-1 text-sm text-gray-600">{session.title}</p>
+                </div>
+                <div className="rounded-2xl bg-purple-50 px-4 py-3 text-right">
+                  <p className="text-xs font-bold uppercase tracking-widest text-tava-purple">Estado</p>
+                  <p className="font-display text-base font-black text-gray-800">{statusCopy}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <StatCard label="Ronda" value={round} />
+                <StatCard label="Votos" value={summary.currentRoundVotes} />
+                <StatCard label="Votantes" value={summary.currentRoundParticipantCount} />
+                <StatCard
+                  label="Progreso"
+                  value={`${possibleVotes ? Math.round((summary.currentRoundVotes / possibleVotes) * 100) : 0}%`}
+                />
+              </div>
+            </section>
+
+            <button
+              type="button"
+              disabled={!!busyAction}
+              onClick={() =>
+                void deleteRoom({
+                  id: session.id,
+                  code: session.code,
+                  title: session.title,
+                  is_open: session.is_open,
+                  show_results: session.show_results,
+                  current_round: session.current_round,
+                  object_collection_open: session.object_collection_open,
+                  created_at: session.created_at,
+                })
+              }
+              className="min-h-12 w-full rounded-xl border border-red-200 bg-red-50 text-sm font-bold text-red-600 disabled:opacity-50"
+            >
+              Borrar esta sala
+            </button>
           </div>
         )}
 
@@ -1126,6 +1233,15 @@ export function VotingAdminPanel() {
       </div>
 
       <div className="fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-3 py-3 backdrop-blur sm:px-4">
+        {step === "control" && (
+          <button
+            type="button"
+            onClick={() => setStep("sala")}
+            className="min-h-12 w-full rounded-xl bg-tava-blue text-sm font-black text-white"
+          >
+            Ver sala / QR
+          </button>
+        )}
         {step === "sala" && (
           <button
             type="button"
@@ -1158,19 +1274,19 @@ export function VotingAdminPanel() {
         {step === "jugadores" && (
           <button
             type="button"
-            onClick={() => setStep("salas")}
+            onClick={() => setStep("control")}
             className="min-h-12 w-full rounded-xl bg-tava-red text-sm font-black text-white"
           >
-            Ver / borrar salas
+            Ir a Control del show
           </button>
         )}
         {step === "salas" && (
           <button
             type="button"
-            onClick={() => setStep("sala")}
+            onClick={() => setStep("control")}
             className="min-h-12 w-full rounded-xl border border-gray-200 bg-white text-sm font-black text-gray-700"
           >
-            Volver a sala actual
+            Volver a Control
           </button>
         )}
       </div>
