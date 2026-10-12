@@ -6,6 +6,7 @@ import { ShowBrandTitle } from "@/components/ShowBrandTitle";
 import {
   detectGameModeHint,
   getActiveDailyGame,
+  resolveDisplayScene,
   resolveEffectiveDisplayScene,
   shouldShowStageRoulette,
   type DisplayScene,
@@ -168,6 +169,7 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
       setSummary(data.summary ?? emptySummary);
       setError("");
 
+      const configured = resolveDisplayScene(next.display_scene);
       const effective = resolveEffectiveDisplayScene(next);
       const spunAt = next.roulette_spun_at;
       const winner = next.selected_objects?.[0] ?? "";
@@ -180,7 +182,20 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
         // No re-reproduce un sorteo viejo al abrir el proyector
         if (spunAt) lastSpinRef.current = spunAt;
       } else if (changed) {
-        applySceneChange(effective);
+        // Botones manuales del admin: cambio al instante (sin quedar en Recibiendo/objetos).
+        if (configured !== "auto") {
+          pendingSceneRef.current = null;
+          setTelonPlaying(false);
+          telonPlayingRef.current = false;
+          setVisibleScene(effective);
+          visibleSceneRef.current = effective;
+        } else {
+          applySceneChange(effective);
+        }
+      }
+
+      if (configured === "winner" || effective === "winner") {
+        setRouletteOpen(false);
       }
 
       if (spunAt && winner && allowRoulette && lastSpinRef.current !== spunAt) {
@@ -420,21 +435,26 @@ function SceneContent({
   }
 
   if (scene === "winner") {
+    const label = session.submission_label || "Propuesta";
     return (
-      <div className="text-center">
-        <p className="font-hand text-3xl text-tava-yellow sm:text-4xl">
-          {session.submission_label || "Propuesta"}
-        </p>
-        <h1 className="mt-2 font-display text-5xl tracking-wide text-white sm:text-6xl">
-          PARA ESTA IMPRO
+      <div className="mx-auto w-full max-w-4xl text-center">
+        <p className="font-hand text-3xl text-tava-yellow sm:text-4xl">#TAVA en el acto</p>
+        <h1 className="mt-2 font-display text-6xl tracking-wide text-white sm:text-7xl md:text-8xl">
+          GANADOR
         </h1>
-        <motion.p
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="mx-auto mt-10 max-w-5xl font-display text-5xl leading-tight text-tava-yellow sm:text-6xl md:text-7xl"
-        >
-          {winner || "Aun no hay ganador"}
-        </motion.p>
+        <div className="mt-10 rounded-[2rem] border-4 border-tava-yellow bg-white px-6 py-10 text-tava-blue shadow-[10px_10px_0_rgba(11,18,32,0.35)] sm:px-10 sm:py-12">
+          <p className="font-hand text-2xl text-tava-red sm:text-3xl">{label}</p>
+          <p className="mt-2 font-display text-2xl tracking-wide text-tava-blue/80 sm:text-3xl">
+            PARA ESTA IMPRO
+          </p>
+          <motion.p
+            initial={{ scale: 0.92, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="mx-auto mt-8 max-w-4xl font-display text-4xl leading-tight text-tava-blue sm:text-5xl md:text-6xl lg:text-7xl"
+          >
+            {winner || "Aun no hay sorteo"}
+          </motion.p>
+        </div>
       </div>
     );
   }

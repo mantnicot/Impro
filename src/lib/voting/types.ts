@@ -33,6 +33,8 @@ export interface Artist {
   color: string;
   avatar_gender: "male" | "female";
   tagline: string;
+  /** Data URL de la foto cutout (solo esta noche). */
+  photo_data?: string | null;
   sort_order: number;
   created_at: string;
 }

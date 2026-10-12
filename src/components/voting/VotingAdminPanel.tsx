@@ -9,11 +9,8 @@ import {
   DEFAULT_SUBMISSION_PROMPT,
   SUBMISSION_PRESETS,
 } from "@/lib/voting/submission-prompt";
-import {
-  ARTIST_COLORS,
-  ARTIST_TAGLINES,
-  type AvatarGender,
-} from "@/lib/voting/artist-style";
+import { ARTIST_COLORS, ARTIST_TAGLINES } from "@/lib/voting/artist-style";
+import { fileToArtistPhotoData } from "@/lib/voting/compress-photo";
 import type { Artist, ArtistResult, DailyGame, VotingSession, VotingSummary } from "@/lib/voting/types";
 import { clampGameIndex, parseGamesFromPaste } from "@/lib/voting/parse-games-paste";
 import type { DisplayScene } from "@/lib/voting/display-scene";
@@ -71,8 +68,9 @@ export function VotingAdminPanel() {
   const [artists, setArtists] = useState<Artist[]>([]);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState(ARTIST_COLORS[0]!);
-  const [newAvatarGender, setNewAvatarGender] = useState<AvatarGender>("male");
   const [newTagline, setNewTagline] = useState(ARTIST_TAGLINES[0]!);
+  const [newPhotoData, setNewPhotoData] = useState<string | null>(null);
+  const [photoBusyId, setPhotoBusyId] = useState<string | null>(null);
   const [liveResults, setLiveResults] = useState<ArtistResult[]>([]);
   const [summary, setSummary] = useState<VotingSummary>(emptySummary);
   const [loading, setLoading] = useState(true);
@@ -235,6 +233,7 @@ export function VotingAdminPanel() {
   const addArtist = async () => {
     if (!newName.trim()) return;
     setBusyAction("artist");
+    setError("");
     try {
       const res = await fetch("/api/voting/artists", {
         method: "POST",
@@ -242,8 +241,8 @@ export function VotingAdminPanel() {
         body: JSON.stringify({
           name: newName.trim(),
           color: newColor,
-          avatarGender: newAvatarGender,
           tagline: newTagline,
+          photoData: newPhotoData,
         }),
       });
       const data = await res.json();
@@ -257,15 +256,19 @@ export function VotingAdminPanel() {
       const nextIndex = artists.length + 1;
       setNewName("");
       setNewColor(ARTIST_COLORS[nextIndex % ARTIST_COLORS.length]!);
-      setNewAvatarGender(nextIndex % 2 === 0 ? "male" : "female");
       setNewTagline(ARTIST_TAGLINES[nextIndex % ARTIST_TAGLINES.length]!);
+      setNewPhotoData(null);
     } finally {
       setBusyAction(null);
     }
   };
 
-  const updateArtist = async (artist: Artist, updates: Partial<Artist>) => {
+  const updateArtist = async (
+    artist: Artist,
+    updates: Partial<Artist> & { photoData?: string | null; clearPhoto?: boolean }
+  ) => {
     setBusyAction(artist.id);
+    setError("");
     try {
       const res = await fetch("/api/voting/artists", {
         method: "PATCH",
@@ -274,8 +277,12 @@ export function VotingAdminPanel() {
           id: artist.id,
           name: updates.name ?? artist.name,
           color: updates.color ?? artist.color,
-          avatarGender: updates.avatar_gender ?? artist.avatar_gender,
           tagline: updates.tagline ?? artist.tagline,
+          ...(updates.clearPhoto
+            ? { clearPhoto: true }
+            : updates.photoData !== undefined
+              ? { photoData: updates.photoData }
+              : {}),
         }),
       });
       const data = await res.json();
@@ -286,6 +293,33 @@ export function VotingAdminPanel() {
       setArtists((prev) => prev.map((item) => (item.id === artist.id ? data.artist : item)));
     } finally {
       setBusyAction(null);
+    }
+  };
+
+  const onPickNewPhoto = async (file: File | null) => {
+    if (!file) return;
+    setPhotoBusyId("new");
+    setError("");
+    try {
+      setNewPhotoData(await fileToArtistPhotoData(file));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo leer la foto");
+    } finally {
+      setPhotoBusyId(null);
+    }
+  };
+
+  const onPickArtistPhoto = async (artist: Artist, file: File | null) => {
+    if (!file) return;
+    setPhotoBusyId(artist.id);
+    setError("");
+    try {
+      const photoData = await fileToArtistPhotoData(file);
+      await updateArtist(artist, { photoData });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo leer la foto");
+    } finally {
+      setPhotoBusyId(null);
     }
   };
 
@@ -1025,8 +1059,12 @@ export function VotingAdminPanel() {
               )}
             </section>
 
-            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <h2 className="font-display text-lg font-bold text-gray-800">Jugadores / artistas</h2>
+            <section className="rounded-2xl border-4 border-tava-yellow bg-white p-4 shadow-[4px_4px_0_rgba(11,18,32,0.2)]">
+              <p className="font-hand text-lg text-tava-red">Album Panini TAVA</p>
+              <h2 className="font-display text-2xl tracking-wide text-tava-blue">JUGADORES / CAST</h2>
+              <p className="mt-1 text-xs text-gray-500">
+                Sube foto PNG sin fondo. Se guarda en la tabla solo para esta sala/noche.
+              </p>
               <div className="mt-3 grid gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3">
                 <input
                   value={newName}
@@ -1035,46 +1073,74 @@ export function VotingAdminPanel() {
                   className={fieldClass}
                   onKeyDown={(e) => e.key === "Enter" && void addArtist()}
                 />
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <select
-                    value={newAvatarGender}
-                    onChange={(e) => setNewAvatarGender(e.target.value as AvatarGender)}
-                    className={fieldClass}
-                  >
-                    <option value="male">Muneco hombre</option>
-                    <option value="female">Muneca mujer</option>
-                  </select>
-                  <select
-                    value={newTagline}
-                    onChange={(e) => setNewTagline(e.target.value)}
-                    className={fieldClass}
-                  >
-                    {ARTIST_TAGLINES.map((tagline) => (
-                      <option key={tagline} value={tagline}>
-                        {tagline}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {ARTIST_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      aria-label={`Color ${color}`}
-                      onClick={() => setNewColor(color)}
-                      className={`h-10 w-10 rounded-full border-2 ${newColor === color ? "border-gray-900" : "border-white"}`}
-                      style={{ backgroundColor: color }}
-                    />
+                <select
+                  value={newTagline}
+                  onChange={(e) => setNewTagline(e.target.value)}
+                  className={fieldClass}
+                >
+                  {ARTIST_TAGLINES.map((tagline) => (
+                    <option key={tagline} value={tagline}>
+                      {tagline}
+                    </option>
                   ))}
+                </select>
+                <div>
+                  <p className="mb-1.5 text-xs font-bold text-gray-600">Color de la carta (toda la tarjeta)</p>
+                  <div className="flex flex-wrap gap-2">
+                    {ARTIST_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        aria-label={`Color ${color}`}
+                        onClick={() => setNewColor(color)}
+                        className={`h-10 w-10 rounded-full border-2 ${
+                          newColor === color ? "border-gray-900 ring-2 ring-tava-yellow" : "border-white"
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="inline-flex min-h-11 cursor-pointer items-center rounded-xl border-2 border-tava-blue bg-white px-4 text-sm font-black text-tava-blue">
+                    {photoBusyId === "new" ? "Procesando…" : newPhotoData ? "Cambiar foto" : "Foto sin fondo"}
+                    <input
+                      type="file"
+                      accept="image/png,image/webp,image/jpeg"
+                      className="hidden"
+                      disabled={photoBusyId === "new"}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null;
+                        e.target.value = "";
+                        void onPickNewPhoto(file);
+                      }}
+                    />
+                  </label>
+                  {newPhotoData && (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={newPhotoData}
+                        alt="Preview"
+                        className="h-14 w-12 rounded-lg border border-gray-200 bg-[repeating-conic-gradient(#e5e7eb_0%_25%,#fff_0%_50%)] bg-[length:10px_10px] object-contain"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setNewPhotoData(null)}
+                        className="text-xs font-bold text-red-500"
+                      >
+                        Quitar foto
+                      </button>
+                    </>
+                  )}
                 </div>
                 <button
                   type="button"
                   disabled={!newName.trim() || !!busyAction}
                   onClick={() => void addArtist()}
-                  className="min-h-12 rounded-xl bg-tava-neon-pink text-sm font-bold text-white disabled:opacity-40"
+                  className="min-h-12 rounded-xl bg-tava-red text-sm font-black text-white disabled:opacity-40"
                 >
-                  Agregar jugador
+                  Agregar al album
                 </button>
               </div>
 
@@ -1090,34 +1156,53 @@ export function VotingAdminPanel() {
                             aria-label={`Color ${color}`}
                             onClick={() => void updateArtist(artist, { color })}
                             className={`h-8 w-8 rounded-full border-2 ${
-                              artist.color === color ? "border-gray-900" : "border-white"
+                              artist.color === color ? "border-gray-900 ring-2 ring-tava-yellow" : "border-white"
                             }`}
                             style={{ backgroundColor: color }}
                           />
                         ))}
                       </div>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <select
-                          value={artist.avatar_gender || "male"}
-                          disabled={busyAction === artist.id}
-                          onChange={(e) => void updateArtist(artist, { avatar_gender: e.target.value as AvatarGender })}
-                          className="min-h-11 rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                        >
-                          <option value="male">Muneco hombre</option>
-                          <option value="female">Muneca mujer</option>
-                        </select>
-                        <select
-                          value={artist.tagline || ARTIST_TAGLINES[0]}
-                          disabled={busyAction === artist.id}
-                          onChange={(e) => void updateArtist(artist, { tagline: e.target.value })}
-                          className="min-h-11 rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                        >
-                          {ARTIST_TAGLINES.map((tagline) => (
-                            <option key={tagline} value={tagline}>
-                              {tagline}
-                            </option>
-                          ))}
-                        </select>
+                      <select
+                        value={artist.tagline || ARTIST_TAGLINES[0]}
+                        disabled={busyAction === artist.id}
+                        onChange={(e) => void updateArtist(artist, { tagline: e.target.value })}
+                        className="min-h-11 rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                      >
+                        {ARTIST_TAGLINES.map((tagline) => (
+                          <option key={tagline} value={tagline}>
+                            {tagline}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex flex-wrap gap-2">
+                        <label className="inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-xl border-2 border-tava-blue bg-white px-3 text-xs font-black text-tava-blue">
+                          {photoBusyId === artist.id
+                            ? "Subiendo…"
+                            : artist.photo_data
+                              ? "Cambiar foto"
+                              : "Subir foto PNG"}
+                          <input
+                            type="file"
+                            accept="image/png,image/webp,image/jpeg"
+                            className="hidden"
+                            disabled={photoBusyId === artist.id || busyAction === artist.id}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] ?? null;
+                              e.target.value = "";
+                              void onPickArtistPhoto(artist, file);
+                            }}
+                          />
+                        </label>
+                        {artist.photo_data && (
+                          <button
+                            type="button"
+                            disabled={busyAction === artist.id}
+                            onClick={() => void updateArtist(artist, { clearPhoto: true })}
+                            className="min-h-11 rounded-xl border border-gray-300 px-3 text-xs font-bold text-gray-600"
+                          >
+                            Sin foto
+                          </button>
+                        )}
                       </div>
                       <button
                         type="button"

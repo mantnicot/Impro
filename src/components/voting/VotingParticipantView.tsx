@@ -6,7 +6,8 @@ import { clearSession, getSessionCode, getSessionId, getVoterId } from "@/lib/ro
 import { detectGameModeHint, getActiveDailyGame } from "@/lib/voting/display-scene";
 import { formatSubmissionDisplay } from "@/lib/voting/submission-display";
 import type { Artist, ArtistResult, VotingSession } from "@/lib/voting/types";
-import { ArtistIdentityCard } from "./ArtistIdentityCard";
+import { ArtistIdentityCard, PaniniVoteRail } from "./ArtistIdentityCard";
+import { contrastOnColor } from "@/lib/voting/artist-style";
 import { DailyGamesFab } from "./DailyGamesFab";
 import { LiveScoreboard } from "./LiveScoreboard";
 import { ShowWelcomeMessage } from "./ShowWelcomeMessage";
@@ -71,7 +72,11 @@ function ParticipantLayout({
 
       {!focusMode && results.length > 0 && <LiveScoreboard results={results} compact />}
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+      <div
+        className={`min-h-0 flex-1 overscroll-contain [-webkit-overflow-scrolling:touch] ${
+          focusMode ? "flex flex-col overflow-hidden" : "overflow-y-auto"
+        }`}
+      >
         {hasMessage && !focusMode && (
           <section className="relative mx-3 mt-2 overflow-hidden rounded-2xl border-4 border-tava-yellow bg-white shadow-[4px_4px_0_rgba(11,18,32,0.25)] sm:mx-4 sm:mt-3">
             <div className="pointer-events-none absolute inset-0 bg-halftone-dots bg-halftone opacity-30" />
@@ -102,57 +107,16 @@ function ParticipantLayout({
           </section>
         )}
 
-        <div className="px-3 pb-3 pt-2 sm:px-4 sm:pb-4">{children}</div>
+        <div
+          className={`px-3 pb-3 pt-2 sm:px-4 sm:pb-4 ${
+            focusMode ? "flex min-h-0 flex-1 flex-col overflow-y-auto" : ""
+          }`}
+        >
+          {children}
+        </div>
       </div>
 
       {footer}
-    </div>
-  );
-}
-
-function VoteButtons({
-  savedVote,
-  pendingVote,
-  isVoted,
-  savingVotes,
-  onSelect,
-}: {
-  savedVote?: number;
-  pendingVote?: number;
-  isVoted: boolean;
-  savingVotes: boolean;
-  onSelect: (value: number) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-5 gap-1 sm:gap-1.5">
-        {[1, 2, 3, 4, 5].map((value) => {
-          const selected = (isVoted ? savedVote : pendingVote) === value;
-          return (
-            <button
-              key={value}
-              type="button"
-              disabled={isVoted || savingVotes}
-              onClick={() => onSelect(value)}
-              className={`min-h-[44px] rounded-xl border text-sm font-black transition sm:py-3 ${
-                selected
-                  ? "border-gray-900 bg-gray-900 text-white"
-                  : "border-gray-200 bg-gray-50 text-gray-700 active:scale-95 disabled:opacity-50"
-              }`}
-            >
-              {value}
-            </button>
-          );
-        })}
-      </div>
-      {isVoted && (
-        <p className="text-center text-xs font-bold text-green-700">
-          Guardado con {savedVote}. Este voto ya no se puede cambiar.
-        </p>
-      )}
-      {!isVoted && pendingVote != null && (
-        <p className="text-center text-xs font-bold text-tava-purple">Nota seleccionada: {pendingVote}</p>
-      )}
     </div>
   );
 }
@@ -180,6 +144,7 @@ function MobileVoteCarousel({
   const savedVote = votes[artist.id];
   const pendingVote = pendingVotes[artist.id];
   const isVoted = savedVote != null;
+  const ink = contrastOnColor(artist.color || "#1A3A82");
 
   const goNext = () => onIndexChange(Math.min(activeIndex + 1, artists.length - 1));
   const goPrev = () => onIndexChange(Math.max(activeIndex - 1, 0));
@@ -191,19 +156,19 @@ function MobileVoteCarousel({
   };
 
   return (
-    <div className="lg:hidden">
-      <div className="mb-3 flex items-center justify-between gap-2">
+    <div className="flex min-h-0 flex-1 flex-col lg:hidden">
+      <div className="mb-2 flex items-center justify-between gap-2 px-0.5">
         <button
           type="button"
           disabled={activeIndex === 0}
           onClick={goPrev}
-          className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 disabled:opacity-40"
+          className="rounded-xl border-2 border-tava-blue/20 bg-white px-3 py-2 text-sm font-black text-tava-blue disabled:opacity-40"
         >
-          ← Ant.
+          ←
         </button>
         <div className="text-center">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Jugador</p>
-          <p className="font-display text-lg font-black text-gray-900">
+          <p className="font-hand text-sm text-tava-red">Album TAVA</p>
+          <p className="font-display text-lg tracking-wide text-tava-blue">
             {activeIndex + 1} / {artists.length}
           </p>
         </div>
@@ -211,9 +176,9 @@ function MobileVoteCarousel({
           type="button"
           disabled={activeIndex >= artists.length - 1}
           onClick={goNext}
-          className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 disabled:opacity-40"
+          className="rounded-xl border-2 border-tava-blue/20 bg-white px-3 py-2 text-sm font-black text-tava-blue disabled:opacity-40"
         >
-          Sig. →
+          →
         </button>
       </div>
 
@@ -223,20 +188,35 @@ function MobileVoteCarousel({
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.12}
         onDragEnd={handleDragEnd}
-        className="touch-pan-y"
+        className="mx-auto flex min-h-0 w-full max-w-md flex-1 touch-pan-y justify-center"
       >
-        <ArtistIdentityCard artist={artist} compact muted={isVoted}>
-          <VoteButtons
-            savedVote={savedVote}
-            pendingVote={pendingVote}
-            isVoted={isVoted}
-            savingVotes={savingVotes}
-            onSelect={(value) => onSelectVote(artist.id, value)}
-          />
-        </ArtistIdentityCard>
+        <ArtistIdentityCard
+          artist={artist}
+          stage
+          muted={isVoted}
+          albumNumber={activeIndex + 1}
+          voteRail={
+            <PaniniVoteRail
+              savedVote={savedVote}
+              pendingVote={pendingVote}
+              isVoted={isVoted}
+              savingVotes={savingVotes}
+              onSelect={(value) => onSelectVote(artist.id, value)}
+              ink={ink}
+            />
+          }
+        />
       </motion.div>
 
-      <div className="mt-3 flex justify-center gap-1.5">
+      <p className="mt-2 text-center text-[11px] font-bold text-gray-500">
+        {isVoted
+          ? `Guardado: ${savedVote}`
+          : pendingVote != null
+            ? `Nota ${pendingVote} · desliza al siguiente`
+            : "Toca 1–5 a la derecha · desliza entre cartas"}
+      </p>
+
+      <div className="mt-2 flex justify-center gap-1.5 pb-1">
         {artists.map((item, index) => {
           const done = votes[item.id] != null || pendingVotes[item.id] != null;
           return (
@@ -246,7 +226,11 @@ function MobileVoteCarousel({
               aria-label={`Ir a ${item.name}`}
               onClick={() => onIndexChange(index)}
               className={`h-2.5 rounded-full transition ${
-                index === activeIndex ? "w-6 bg-tava-purple" : done ? "w-2.5 bg-green-400" : "w-2.5 bg-gray-300"
+                index === activeIndex
+                  ? "w-6 bg-tava-yellow"
+                  : done
+                    ? "w-2.5 bg-green-500"
+                    : "w-2.5 bg-gray-300"
               }`}
             />
           );
@@ -558,78 +542,75 @@ export function VotingParticipantView() {
       >
         {savingVotes && <SavingOverlay text="Guardando votos" />}
 
-        <section className="rounded-2xl border border-green-200 bg-white p-3 text-center shadow-sm sm:rounded-3xl sm:p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-600 sm:text-xs sm:tracking-[0.25em]">
-            Momento de votacion · Ronda {round}
-          </p>
-          <h2 className="mt-1 font-display text-xl font-black text-gray-900 sm:text-2xl">
-            Califica a cada jugador
-          </h2>
-          <div className="mt-3 rounded-2xl bg-green-50 p-2.5 sm:p-3">
-            <div className="flex items-center justify-between text-xs font-bold text-green-800">
-              <span>Listos</span>
-              <span>
-                {readyVoteCount}/{artists.length}
-              </span>
+        <div className="flex min-h-[calc(100dvh-7.5rem)] flex-col">
+          <div className="mb-2 flex items-center justify-between gap-2 rounded-2xl border-2 border-tava-yellow bg-tava-blue px-3 py-2 text-white">
+            <div>
+              <p className="font-hand text-sm text-tava-yellow">Ronda {round}</p>
+              <p className="font-display text-lg tracking-wide">VOTEN YA</p>
             </div>
-            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white sm:h-3">
-              <div
-                className="h-full rounded-full bg-green-500 transition-all"
-                style={{ width: `${artists.length ? (readyVoteCount / artists.length) * 100 : 0}%` }}
-              />
+            <div className="text-right">
+              <p className="text-[10px] font-black uppercase tracking-wider text-white/70">Listos</p>
+              <p className="font-display text-xl text-tava-yellow">
+                {readyVoteCount}/{artists.length}
+              </p>
             </div>
           </div>
+
           {attemptedVoteSubmit && missingArtists.length > 0 && (
-            <p className="mt-3 rounded-2xl bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 sm:px-4 sm:py-3 sm:text-sm">
-              Te falta votar por: {missingArtists.map((artist) => artist.name).join(", ")}
+            <p className="mb-2 rounded-xl bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">
+              Te falta: {missingArtists.map((artist) => artist.name).join(", ")}
             </p>
           )}
-          {allVotesDone && (
-            <p className="mt-3 rounded-2xl bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 sm:px-4 sm:py-3 sm:text-sm">
-              Listo. Tus votos quedaron guardados.
+
+          {artists.length === 0 ? (
+            <p className="mt-6 text-center text-sm text-gray-500">
+              El administrador aun no ha agregado jugadores.
             </p>
-          )}
-        </section>
+          ) : (
+            <>
+              <MobileVoteCarousel
+                artists={artists}
+                votes={votes}
+                pendingVotes={pendingVotes}
+                savingVotes={savingVotes}
+                activeIndex={activeArtistIndex}
+                onIndexChange={setActiveArtistIndex}
+                onSelectVote={selectVote}
+              />
 
-        {artists.length === 0 ? (
-          <p className="mt-6 text-center text-sm text-gray-500">El administrador aun no ha agregado jugadores.</p>
-        ) : (
-          <>
-            <MobileVoteCarousel
-              artists={artists}
-              votes={votes}
-              pendingVotes={pendingVotes}
-              savingVotes={savingVotes}
-              activeIndex={activeArtistIndex}
-              onIndexChange={setActiveArtistIndex}
-              onSelectVote={selectVote}
-            />
+              <div className="mt-4 hidden gap-4 lg:grid lg:grid-cols-2 xl:grid-cols-3">
+                {artists.map((artist, index) => {
+                  const savedVote = votes[artist.id];
+                  const pendingVote = pendingVotes[artist.id];
+                  const isVoted = savedVote != null;
+                  const ink = contrastOnColor(artist.color || "#1A3A82");
 
-            <div className="mt-4 hidden gap-4 lg:grid lg:grid-cols-2">
-              {artists.map((artist) => {
-                const savedVote = votes[artist.id];
-                const pendingVote = pendingVotes[artist.id];
-                const isVoted = savedVote != null;
-
-                return (
-                  <ArtistIdentityCard key={artist.id} artist={artist} muted={isVoted}>
-                    <VoteButtons
-                      savedVote={savedVote}
-                      pendingVote={pendingVote}
-                      isVoted={isVoted}
-                      savingVotes={savingVotes}
-                      onSelect={(value) => selectVote(artist.id, value)}
+                  return (
+                    <ArtistIdentityCard
+                      key={artist.id}
+                      artist={artist}
+                      muted={isVoted}
+                      albumNumber={index + 1}
+                      voteRail={
+                        <PaniniVoteRail
+                          savedVote={savedVote}
+                          pendingVote={pendingVote}
+                          isVoted={isVoted}
+                          savingVotes={savingVotes}
+                          onSelect={(value) => selectVote(artist.id, value)}
+                          ink={ink}
+                        />
+                      }
                     />
-                  </ArtistIdentityCard>
-                );
-              })}
-            </div>
-          </>
-        )}
+                  );
+                })}
+              </div>
+            </>
+          )}
 
-        {saved && <StatusMessage text={saved} />}
-        {error && <p className="mt-4 text-center text-sm text-red-500">{error}</p>}
-        <ExitButton />
+          {saved && <StatusMessage text={saved} />}
+          {error && <p className="mt-3 text-center text-sm text-red-500">{error}</p>}
+        </div>
       </ParticipantLayout>
     );
   }

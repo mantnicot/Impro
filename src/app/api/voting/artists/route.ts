@@ -7,6 +7,7 @@ import {
   normalizeAvatarGender,
   normalizeTagline,
 } from "@/lib/voting/artist-style";
+import { isPhotoDataUrl } from "@/lib/voting/compress-photo";
 
 async function verifyAdminSession(code: string, pin: string | null) {
   const auth = requireMasterAdmin(pin);
@@ -19,6 +20,13 @@ async function verifyAdminSession(code: string, pin: string | null) {
     .eq("code", code.toUpperCase())
     .single();
   return session;
+}
+
+function normalizePhotoField(value: unknown): string | null | undefined {
+  if (value === null) return null;
+  if (value === undefined) return undefined;
+  if (isPhotoDataUrl(value)) return value;
+  return undefined;
 }
 
 export async function POST(request: NextRequest) {
@@ -37,10 +45,16 @@ export async function POST(request: NextRequest) {
       color?: string;
       avatarGender?: string;
       tagline?: string;
+      photoData?: string | null;
     };
     const { name } = body;
     if (!name?.trim()) {
       return NextResponse.json({ error: "Nombre requerido" }, { status: 400 });
+    }
+
+    const photo = normalizePhotoField(body.photoData);
+    if (body.photoData != null && body.photoData !== "" && photo === undefined) {
+      return NextResponse.json({ error: "Foto invalida o demasiado grande" }, { status: 400 });
     }
 
     const db = getSupabaseAdmin();
@@ -57,6 +71,7 @@ export async function POST(request: NextRequest) {
         color: normalizeArtistColor(body.color ?? ARTIST_COLORS[(count ?? 0) % ARTIST_COLORS.length]),
         avatar_gender: normalizeAvatarGender(body.avatarGender),
         tagline: normalizeTagline(body.tagline, count ?? 0),
+        photo_data: photo ?? null,
         sort_order: count ?? 0,
       })
       .select("*")
@@ -101,23 +116,36 @@ export async function PATCH(request: NextRequest) {
     const session = await verifyAdminSession(code, pin);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const { id, name, color, avatarGender, tagline } = (await request.json()) as {
+    const body = (await request.json()) as {
       id?: string;
       name?: string;
       color?: string;
       avatarGender?: string;
       tagline?: string;
+      photoData?: string | null;
+      clearPhoto?: boolean;
     };
+    const { id, name, color, avatarGender, tagline } = body;
     if (!id || !name?.trim()) {
       return NextResponse.json({ error: "id y name requeridos" }, { status: 400 });
     }
 
-    const updates = {
+    const updates: Record<string, unknown> = {
       name: name.trim(),
       color: normalizeArtistColor(color),
       avatar_gender: normalizeAvatarGender(avatarGender),
       tagline: normalizeTagline(tagline),
     };
+
+    if (body.clearPhoto) {
+      updates.photo_data = null;
+    } else if (body.photoData !== undefined) {
+      const photo = normalizePhotoField(body.photoData);
+      if (body.photoData !== null && photo === undefined) {
+        return NextResponse.json({ error: "Foto invalida o demasiado grande" }, { status: 400 });
+      }
+      updates.photo_data = photo ?? null;
+    }
 
     const db = getSupabaseAdmin();
     const { data, error } = await db

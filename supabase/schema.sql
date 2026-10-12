@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS artists (
   color TEXT NOT NULL DEFAULT '#F87171',
   avatar_gender TEXT NOT NULL DEFAULT 'male',
   tagline TEXT NOT NULL DEFAULT 'El mas chistoso',
+  photo_data TEXT,
   sort_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -68,6 +69,7 @@ CREATE INDEX IF NOT EXISTS idx_round_objects_session_round
 -- ALTER TABLE artists ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT '#F87171';
 -- ALTER TABLE artists ADD COLUMN IF NOT EXISTS avatar_gender TEXT NOT NULL DEFAULT 'male';
 -- ALTER TABLE artists ADD COLUMN IF NOT EXISTS tagline TEXT NOT NULL DEFAULT 'El mas chistoso';
+-- ALTER TABLE artists ADD COLUMN IF NOT EXISTS photo_data TEXT;
 -- ALTER TABLE votes ADD COLUMN IF NOT EXISTS round INT NOT NULL DEFAULT 1;
 -- ALTER TABLE votes DROP CONSTRAINT IF EXISTS votes_session_id_voter_id_artist_id_key;
 -- ALTER TABLE votes ADD CONSTRAINT votes_session_voter_artist_round_key UNIQUE (session_id, voter_id, artist_id, round);
