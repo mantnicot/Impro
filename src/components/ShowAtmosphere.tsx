@@ -46,8 +46,8 @@ function makeDots(count: number, seed: number) {
     size: Math.round(6 + rnd() * 14),
     color: DOT_COLORS[Math.floor(rnd() * DOT_COLORS.length)],
     ring: rnd() < 0.3, // algunos son aro, como puntos de impresión comic
-    duration: Number((9 + rnd() * 9).toFixed(2)),
-    delay: Number((rnd() * 8).toFixed(2)),
+    duration: Number((18 + rnd() * 16).toFixed(2)),
+    delay: Number((rnd() * 14).toFixed(2)),
     peak: Number((0.45 + rnd() * 0.4).toFixed(2)),
   }));
 }
@@ -83,24 +83,24 @@ export default function ShowAtmosphere({ variant = "lobby", className = "" }: Pr
       <motion.div
         className="bg-halftone-dots absolute -inset-[8%] will-change-transform"
         style={{ opacity: lobby ? 0.55 : 0.4 }}
-        animate={reduce ? undefined : { x: [0, 28], y: [0, -28] }}
-        transition={mirror(14)}
+        animate={reduce ? undefined : { x: [0, 22], y: [0, -22] }}
+        transition={mirror(32)}
       />
 
-      {/* Spotlight: dos haces que barren despacio */}
+      {/* Spotlight: dos haces que barren muy despacio */}
       <motion.div
         className="absolute left-[8%] top-[-10%] h-[125%] w-[36%] origin-top will-change-transform"
         style={beam}
         initial={{ rotate: -10 }}
-        animate={reduce ? undefined : { rotate: [-14, 10] }}
-        transition={mirror(9)}
+        animate={reduce ? undefined : { rotate: [-12, 8] }}
+        transition={mirror(22)}
       />
       <motion.div
         className="absolute right-[8%] top-[-10%] h-[125%] w-[36%] origin-top will-change-transform"
         style={beam}
         initial={{ rotate: 10 }}
-        animate={reduce ? undefined : { rotate: [14, -10] }}
-        transition={mirror(11, 1.2)}
+        animate={reduce ? undefined : { rotate: [12, -8] }}
+        transition={mirror(26, 2.5)}
       />
 
       {/* Puntos que suben */}
@@ -139,7 +139,7 @@ export default function ShowAtmosphere({ variant = "lobby", className = "" }: Pr
           background: `radial-gradient(ellipse at center, transparent ${lobby ? 48 : 42}%, rgba(5,10,25,${lobby ? 0.7 : 0.82}) 100%)`,
         }}
         animate={reduce ? undefined : { opacity: [0.85, 1] }}
-        transition={mirror(8)}
+        transition={mirror(18)}
       />
     </div>
   );

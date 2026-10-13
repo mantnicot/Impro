@@ -35,11 +35,11 @@ export function HeroText({ children, className = "" }: { children: ReactNode; cl
       animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
       transition={{ type: "spring", stiffness: 260, damping: 20 }}
     >
-      {/* idle: flota apenas, 5 s */}
+      {/* idle: flota apenas, muy lento */}
       <motion.div
         className="will-change-transform"
-        animate={{ y: [0, -5], rotate: [0, 0.6] }}
-        transition={mirror(5, 0.8)}
+        animate={{ y: [0, -4], rotate: [0, 0.4] }}
+        transition={mirror(14, 1.2)}
       >
         {children}
       </motion.div>
@@ -66,19 +66,19 @@ export function PulseFrame({
   return (
     <motion.div
       className={`relative ${className}`}
-      animate={reduce ? undefined : { scale: [1, 1.02] }}
-      transition={mirror(4)}
+      animate={reduce ? undefined : { scale: [1, 1.015] }}
+      transition={mirror(11)}
     >
       {!reduce &&
-        [0, 1.6].map((delay) => (
+        [0, 4].map((delay) => (
           <motion.span
             key={delay}
             aria-hidden
             className={`pointer-events-none absolute -inset-2 border-4 will-change-transform ${radiusClass}`}
             style={{ borderColor: color }}
             initial={{ opacity: 0, scale: 1 }}
-            animate={{ opacity: [0.75, 0], scale: [1, 1.12] }}
-            transition={{ duration: 3.2, delay, repeat: Infinity, ease: "easeOut" }}
+            animate={{ opacity: [0.65, 0], scale: [1, 1.1] }}
+            transition={{ duration: 8, delay, repeat: Infinity, ease: "easeOut" }}
           />
         ))}
       <div className="relative z-10">{children}</div>
@@ -102,16 +102,16 @@ export function GlowText({
   return (
     <motion.span
       className={`relative inline-block ${className}`}
-      animate={reduce ? undefined : { scale: [1, 1.015] }}
-      transition={mirror(3.6)}
+      animate={reduce ? undefined : { scale: [1, 1.012] }}
+      transition={mirror(10)}
     >
       {/* copia desenfocada: solo cambia su opacidad (barato en GPU) */}
       <motion.span
         aria-hidden
         className="pointer-events-none absolute inset-0 select-none blur-md"
         style={{ color: glow, opacity: reduce ? 0.35 : 0.25 }}
-        animate={reduce ? undefined : { opacity: [0.25, 0.8] }}
-        transition={mirror(3.6)}
+        animate={reduce ? undefined : { opacity: [0.22, 0.7] }}
+        transition={mirror(10)}
       >
         {children}
       </motion.span>
