@@ -198,8 +198,16 @@ function RankChip({ rank, size }: { rank: number; size: number }) {
     <span
       className="font-display absolute z-20 flex items-center justify-center rounded-full leading-none shadow-lg"
       style={{
-        left: -size * 0.28, top: -size * 0.28, width: size, height: size,
-        background: s.bg, color: s.fg, border: `4px solid ${s.border}`, fontSize: size * 0.46,
+        // Arriba a la derecha, fuera del contenido (no tapa nombre / “en el acto”)
+        right: -size * 0.18,
+        top: -size * 0.32,
+        left: "auto",
+        width: size,
+        height: size,
+        background: s.bg,
+        color: s.fg,
+        border: `4px solid ${s.border}`,
+        fontSize: size * 0.46,
       }}
     >
       {rank}º

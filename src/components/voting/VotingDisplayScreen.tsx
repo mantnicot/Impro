@@ -189,19 +189,16 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
         // No re-reproduce un sorteo viejo al abrir el proyector
         if (spunAt) lastSpinRef.current = spunAt;
       } else if (changed) {
-        // Botones manuales del admin: cambio al instante (sin quedar en Recibiendo/objetos).
-        if (configured !== "auto") {
-          pendingSceneRef.current = null;
-          setTelonPlaying(false);
-          telonPlayingRef.current = false;
-          setVisibleScene(effective);
-          visibleSceneRef.current = effective;
-        } else {
-          applySceneChange(effective);
-        }
+        // Auto y botones manuales: siempre con telón al cambiar de escena
+        applySceneChange(effective);
       }
 
-      if (configured === "winner" || effective === "winner") {
+      if (
+        configured === "winner" ||
+        effective === "winner" ||
+        configured === "results" ||
+        effective === "results"
+      ) {
         setRouletteOpen(false);
       }
 
@@ -303,6 +300,7 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
 
       <TelonTransition
         playKey={telonKey}
+        playing={telonPlaying}
         onMidpoint={handleTelonMidpoint}
         onComplete={handleTelonComplete}
       />

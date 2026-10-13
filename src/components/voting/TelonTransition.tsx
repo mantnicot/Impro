@@ -9,14 +9,20 @@ const MIDPOINT_MS = 900;
 
 interface TelonTransitionProps {
   playKey: number;
+  playing?: boolean;
   onMidpoint: () => void;
   onComplete: () => void;
 }
 
-export function TelonTransition({ playKey, onMidpoint, onComplete }: TelonTransitionProps) {
+export function TelonTransition({
+  playKey,
+  playing = true,
+  onMidpoint,
+  onComplete,
+}: TelonTransitionProps) {
   const midFired = useRef(false);
   const completeFired = useRef(false);
-  const active = playKey > 0;
+  const active = playKey > 0 && playing;
 
   useEffect(() => {
     if (!active) return;

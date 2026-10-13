@@ -91,10 +91,10 @@ export function ArtistIdentityCard({
       <div className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:radial-gradient(#FFC600_0.9px,transparent_0.9px)] [background-size:14px_14px]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(160deg,rgba(255,255,255,0.16),transparent_45%,rgba(11,18,32,0.18))]" />
 
-      {/* Número álbum */}
+      {/* Número álbum (fondo, no tapa el nombre) */}
       <p
         aria-hidden
-        className="pointer-events-none absolute left-2 top-10 font-display text-[7.5rem] leading-none tracking-tight opacity-[0.14] sm:text-[9rem]"
+        className="pointer-events-none absolute bottom-16 left-1/2 -translate-x-1/2 font-display text-[6.5rem] leading-none tracking-tight opacity-[0.1] sm:text-[8rem]"
         style={{ color: ink }}
       >
         {String(number).padStart(2, "0")}
@@ -102,30 +102,26 @@ export function ArtistIdentityCard({
 
       {/* Contenido principal */}
       <div className="relative flex min-w-0 flex-1 flex-col">
-        <header className="relative z-10 px-3 pt-3 sm:px-4 sm:pt-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-                <span className="font-display text-[10px] tracking-[0.14em] text-tava-yellow drop-shadow-[2px_2px_0_rgba(11,18,32,0.45)] sm:text-xs">
-                  #TAVA
-                </span>
-                <span className="-rotate-1 bg-tava-red px-1.5 py-0.5 font-display text-[9px] uppercase tracking-[0.14em] text-white shadow-[2px_2px_0_rgba(11,18,32,0.35)]">
-                  en el acto
-                </span>
-              </div>
-              <h3
-                className={`break-words font-display leading-[0.95] tracking-wide drop-shadow-[2px_2px_0_rgba(11,18,32,0.25)] ${
-                  stage ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl"
-                }`}
-              >
-                {artist.name}
-              </h3>
-            </div>
-            <div className="shrink-0 rounded-md border-2 border-tava-yellow bg-white px-1.5 py-1 text-center shadow-sm">
-              <p className="font-display text-[9px] leading-none tracking-wide text-tava-blue">PANINI</p>
-              <p className="mt-0.5 font-hand text-[10px] leading-none text-tava-red">TAVA</p>
+        <header className="relative z-10 px-2 pt-2.5 text-center sm:px-3 sm:pt-3">
+          <div className="mb-1.5 flex items-center justify-center gap-2">
+            <span className="-rotate-1 bg-tava-red px-1.5 py-0.5 font-display text-[8px] uppercase tracking-[0.14em] text-white shadow-[2px_2px_0_rgba(11,18,32,0.35)] sm:text-[9px]">
+              en el acto
+            </span>
+            <div className="rounded-md border-2 border-tava-yellow bg-white px-1.5 py-0.5 text-center shadow-sm">
+              <p className="font-display text-[8px] leading-none tracking-wide text-tava-blue sm:text-[9px]">
+                PANINI
+              </p>
             </div>
           </div>
+          <h3
+            className={`mx-auto max-w-full break-words px-1 font-display uppercase leading-[0.9] tracking-wide drop-shadow-[3px_3px_0_rgba(11,18,32,0.28)] ${
+              stage
+                ? "text-4xl sm:text-5xl"
+                : "text-[2.75rem] sm:text-6xl md:text-7xl"
+            }`}
+          >
+            {artist.name}
+          </h3>
         </header>
 
         <div className="relative mx-auto mt-1 flex min-h-0 w-full flex-1 items-end justify-center px-2 pb-1 sm:px-3">
@@ -146,8 +142,8 @@ export function ArtistIdentityCard({
           )}
         </div>
 
-        <footer className="relative border-t-4 border-tava-yellow bg-[rgba(11,18,32,0.9)] px-3 py-3.5 text-white sm:px-4 sm:py-4">
-          <p className="font-hand text-xl leading-snug text-tava-yellow sm:text-2xl">
+        <footer className="relative shrink-0 border-t-4 border-tava-yellow bg-[rgba(11,18,32,0.9)] px-2 py-2.5 text-white sm:px-3 sm:py-3">
+          <p className="line-clamp-2 break-words text-center font-hand text-lg leading-snug text-tava-yellow sm:text-xl md:text-2xl">
             {artist.tagline || "Impro TAVA"}
           </p>
         </footer>
