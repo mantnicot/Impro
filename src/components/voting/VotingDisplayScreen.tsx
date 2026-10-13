@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { BrandIntroLoop, BrandIntroTransition } from "@/components/BrandIntro";
 import ShowAtmosphere from "@/components/ShowAtmosphere";
-import { ShowBrandTitle } from "@/components/ShowBrandTitle";
 import {
   detectGameModeHint,
   getActiveDailyGame,
@@ -280,7 +279,7 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
   if (error && !session) {
     return (
       <div className="flex h-[100dvh] flex-col items-center justify-center gap-3 bg-tava-blue px-6 text-center text-white">
-        <ShowBrandTitle size="lg" light />
+        <BrandIntroLoop size="hero" className="h-36 w-full max-w-xs" />
         <p className="font-display text-3xl text-tava-yellow">Sala no encontrada</p>
         <p className="text-sm text-white/70">{error}</p>
       </div>
@@ -331,7 +330,11 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
       ) : (
         <div className="relative z-10 flex h-full flex-col px-6 py-5 sm:px-10 sm:py-8">
           <header className="flex items-start justify-between gap-4 pr-28 sm:pr-36">
-            <ShowBrandTitle size="md" light className="items-start" />
+            <BrandIntroLoop
+              size="corner"
+              align="start"
+              className="h-[4.5rem] w-40 sm:h-20 sm:w-48"
+            />
             <div className="text-right">
               <p className="font-hand text-2xl text-tava-yellow sm:text-3xl">{session?.title}</p>
               <p className="font-display text-2xl tracking-[0.2em] text-white/80 sm:text-3xl">

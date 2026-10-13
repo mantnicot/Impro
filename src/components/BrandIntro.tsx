@@ -22,11 +22,54 @@ export const BRAND_INTRO_MS = 4800;
 export const BRAND_INTRO_MID_MS = 2200;
 export const BRAND_INTRO_LOOP_GAP_MS = 1200;
 
+export type BrandIntroSize = "corner" | "hero" | "stage" | "full";
+
+const SIZE_STYLES: Record<
+  BrandIntroSize,
+  { title: string; ribbon: string; tag: string; pad: string; gap: string; border: string }
+> = {
+  corner: {
+    title: "clamp(1.65rem, 4.5vw, 2.35rem)",
+    ribbon: "clamp(0.55rem, 1.6vw, 0.75rem)",
+    tag: "clamp(0.95rem, 2.4vw, 1.25rem)",
+    pad: "px-0",
+    gap: "mt-1.5",
+    border: "border-2 px-2 py-0.5 shadow-[3px_3px_0_#0B1220]",
+  },
+  hero: {
+    title: "clamp(3.25rem, 12vw, 5.5rem)",
+    ribbon: "clamp(0.95rem, 3vw, 1.5rem)",
+    tag: "clamp(1.5rem, 4.5vw, 2.4rem)",
+    pad: "px-2",
+    gap: "mt-3",
+    border: "border-4 px-4 py-0.5 shadow-[6px_6px_0_#0B1220]",
+  },
+  stage: {
+    title: "clamp(2.75rem, 9vw, 6rem)",
+    ribbon: "clamp(1.1rem, 3.2vw, 2rem)",
+    tag: "clamp(1.5rem, 3.8vw, 2.75rem)",
+    pad: "px-4 sm:px-6",
+    gap: "mt-3",
+    border: "border-4 px-4 py-0.5 shadow-[8px_8px_0_#0B1220]",
+  },
+  full: {
+    title: "clamp(4rem, 17vw, 13rem)",
+    ribbon: "clamp(1.5rem, 5vw, 3.75rem)",
+    tag: "clamp(2rem, 6vw, 4.5rem)",
+    pad: "px-4 sm:px-6",
+    gap: "mt-4",
+    border: "border-4 px-6 py-1 shadow-[8px_8px_0_#0B1220]",
+  },
+};
+
 type BrandIntroStageProps = {
   cycleKey: number;
+  size?: BrandIntroSize;
+  /** @deprecated usar size="stage" */
   compact?: boolean;
   /** Solo tipografía: sin gradiente, rayos ni flash. */
   lettersOnly?: boolean;
+  align?: "center" | "start";
   logo?: ReactNode;
   reduceMotion?: boolean | null;
 };
@@ -34,33 +77,31 @@ type BrandIntroStageProps = {
 /** Una pasada de la coreografía; remonta con cycleKey para repetir. */
 export function BrandIntroStage({
   cycleKey,
+  size,
   compact = false,
   lettersOnly = false,
+  align = "center",
   logo,
   reduceMotion,
 }: BrandIntroStageProps) {
   const reduceHook = useReducedMotion();
   const reduce = reduceMotion ?? reduceHook;
-  const titleSize = compact
-    ? "clamp(2.75rem, 9vw, 6rem)"
-    : "clamp(4rem, 17vw, 13rem)";
-  const ribbonSize = compact
-    ? "clamp(1.1rem, 3.2vw, 2rem)"
-    : "clamp(1.5rem, 5vw, 3.75rem)";
-  const tagSize = compact
-    ? "clamp(1.5rem, 3.8vw, 2.75rem)"
-    : "clamp(2rem, 6vw, 4.5rem)";
+  const resolved: BrandIntroSize = size ?? (compact ? "stage" : "full");
+  const s = SIZE_STYLES[resolved];
+  const slow = resolved === "corner" || resolved === "hero";
 
   const springSlow = {
     type: "spring" as const,
-    stiffness: 90,
+    stiffness: slow ? 70 : 90,
     damping: 18,
   };
 
   return (
     <div
       key={cycleKey}
-      className="relative flex h-full w-full items-center justify-center overflow-hidden"
+      className={`relative flex h-full w-full overflow-hidden ${
+        align === "start" ? "items-start justify-start" : "items-center justify-center"
+      }`}
     >
       {!lettersOnly && (
         <>
@@ -69,17 +110,21 @@ export function BrandIntroStage({
         </>
       )}
 
-      <div className="relative z-10 flex flex-col items-center px-4 text-center sm:px-6">
+      <div
+        className={`relative z-10 flex flex-col text-center ${s.pad} ${
+          align === "start" ? "items-start" : "items-center"
+        }`}
+      >
         <motion.div
           initial={reduce ? false : { opacity: 0, scale: 0.55, rotate: -8 }}
           animate={{ opacity: 1, scale: 1, rotate: -2 }}
-          transition={{ ...springSlow, delay: reduce ? 0 : 0.25 }}
+          transition={{ ...springSlow, delay: reduce ? 0 : slow ? 0.35 : 0.25 }}
         >
           {logo ?? (
             <span
               className="font-display block leading-none text-white"
               style={{
-                fontSize: titleSize,
+                fontSize: s.title,
                 textShadow: "0.06em 0.06em 0 #D61A21",
                 letterSpacing: "0.02em",
               }}
@@ -90,45 +135,47 @@ export function BrandIntroStage({
         </motion.div>
 
         <motion.div
-          className={`-skew-x-6 border-4 border-[#FFC600] bg-[#D61A21] shadow-[8px_8px_0_#0B1220] ${
-            compact ? "mt-3 px-4 py-0.5" : "mt-4 px-6 py-1"
-          }`}
-          initial={reduce ? false : { opacity: 0, y: 40 }}
+          className={`-skew-x-6 border-[#FFC600] bg-[#D61A21] ${s.gap} ${s.border}`}
+          initial={reduce ? false : { opacity: 0, y: slow ? 24 : 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...springSlow, delay: reduce ? 0 : 1.1 }}
+          transition={{ ...springSlow, delay: reduce ? 0 : slow ? 1.4 : 1.1 }}
         >
           <span
             className="font-display block uppercase leading-tight text-white"
-            style={{ fontSize: ribbonSize, letterSpacing: "0.12em" }}
+            style={{ fontSize: s.ribbon, letterSpacing: "0.12em" }}
           >
             En el acto
           </span>
         </motion.div>
 
         <motion.div
-          className={`relative ${compact ? "mt-3" : "mt-5"}`}
+          className={`relative ${s.gap}`}
           initial={reduce ? false : { opacity: 0, rotate: -6, y: 12 }}
           animate={{ opacity: 1, rotate: -3, y: 0 }}
-          transition={{ duration: 1.1, ease: "easeOut", delay: reduce ? 0 : 2 }}
+          transition={{ duration: slow ? 1.35 : 1.1, ease: "easeOut", delay: reduce ? 0 : slow ? 2.4 : 2 }}
         >
-          <span className="font-hand block text-[#FFC600]" style={{ fontSize: tagSize }}>
+          <span className="font-hand block text-[#FFC600]" style={{ fontSize: s.tag }}>
             #TAVA
           </span>
           <svg
             aria-hidden
             viewBox="0 0 200 14"
-            className="absolute -bottom-2 left-0 h-3 w-full"
+            className={`absolute left-0 w-full ${resolved === "corner" ? "-bottom-1 h-2" : "-bottom-2 h-3"}`}
             preserveAspectRatio="none"
           >
             <motion.path
               d="M2 9 C 40 2, 80 14, 120 6 S 178 4, 198 8"
               fill="none"
               stroke="#FFFFFF"
-              strokeWidth="4"
+              strokeWidth={resolved === "corner" ? 3 : 4}
               strokeLinecap="round"
               initial={reduce ? false : { pathLength: 0 }}
               animate={{ pathLength: 1 }}
-              transition={{ duration: 1.2, ease: "easeOut", delay: reduce ? 0 : 2.4 }}
+              transition={{
+                duration: slow ? 1.5 : 1.2,
+                ease: "easeOut",
+                delay: reduce ? 0 : slow ? 2.9 : 2.4,
+              }}
             />
           </svg>
         </motion.div>
@@ -202,29 +249,36 @@ export default function BrandIntro({ logo, onDone }: OverlayProps) {
 /** Bucle continuo: solo letras, sin caja ni fondo propio. */
 export function BrandIntroLoop({
   className = "",
+  size = "stage",
+  align = "center",
   logo,
 }: {
   className?: string;
+  size?: BrandIntroSize;
+  align?: "center" | "start";
   logo?: ReactNode;
 }) {
   const reduce = useReducedMotion();
   const [cycle, setCycle] = useState(0);
+  // Esquina / hero: ciclo un poco más largo para no saturar
+  const period =
+    size === "corner"
+      ? BRAND_INTRO_MS + BRAND_INTRO_LOOP_GAP_MS + 2000
+      : BRAND_INTRO_MS + BRAND_INTRO_LOOP_GAP_MS;
 
   useEffect(() => {
     if (reduce) return;
-    const t = window.setInterval(
-      () => setCycle((c) => c + 1),
-      BRAND_INTRO_MS + BRAND_INTRO_LOOP_GAP_MS
-    );
+    const t = window.setInterval(() => setCycle((c) => c + 1), period);
     return () => window.clearInterval(t);
-  }, [reduce]);
+  }, [reduce, period]);
 
   return (
     <div className={`relative isolate overflow-visible ${className}`} aria-hidden>
       <BrandIntroStage
         cycleKey={cycle}
-        compact
+        size={size}
         lettersOnly
+        align={align}
         logo={logo}
         reduceMotion={reduce}
       />

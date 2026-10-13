@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ShowBrandTitle } from "@/components/ShowBrandTitle";
+import { BrandIntroLoop } from "@/components/BrandIntro";
 import {
   setAdminPin,
   setRole,
@@ -119,11 +119,11 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
   return (
     <div className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-theater-gradient px-4">
       <div className="pointer-events-none absolute inset-0 bg-halftone-dots bg-halftone opacity-40" />
-      <ShowBrandTitle size="lg" light className="relative z-10" />
+      <BrandIntroLoop size="hero" className="relative z-10 h-[11rem] w-full max-w-sm sm:h-[13rem]" />
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 mt-8 w-full max-w-md rounded-3xl border-4 border-tava-yellow bg-white p-6 shadow-[8px_8px_0_rgba(11,18,32,0.35)]"
+        className="relative z-10 mt-6 w-full max-w-md rounded-3xl border-4 border-tava-yellow bg-white p-6 shadow-[8px_8px_0_rgba(11,18,32,0.35)]"
       >
         {mode === "pick" && (
           <>

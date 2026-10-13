@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import BrandIntro from "@/components/BrandIntro";
+import { BrandIntroLoop } from "@/components/BrandIntro";
 import { TheaterLights } from "@/components/TheaterLights";
-import { ShowBrandTitle } from "@/components/ShowBrandTitle";
 import { GameScreen } from "@/components/GameScreen";
 import { QuickMenu } from "@/components/QuickMenu";
 import { ListManager } from "@/components/ListManager";
@@ -31,7 +30,7 @@ import {
   FAVORITES_LIST_ID,
   RANDOM_LIST_NAME,
 } from "@/lib/default-words";
-import { clearSession, getRole, getSessionId, type UserRole } from "@/lib/role-storage";
+import { clearSession, getRole, type UserRole } from "@/lib/role-storage";
 import type { WordList } from "@/types";
 
 type Screen = "hub" | "game";
@@ -140,39 +139,30 @@ export default function HomePage() {
   }
 
   if (!role) {
-    return (
-      <>
-        <BrandIntro />
-        <JoinScreen onJoined={handleJoined} />
-      </>
-    );
+    return <JoinScreen onJoined={handleJoined} />;
   }
 
   if (role === "participant") {
     return (
-      <>
-        {/* Cada ingreso a la sala: intro de marca (sin sessionStorage) */}
-        <BrandIntro key={`intro-participant-${getSessionId() || "new"}`} />
-        <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-theater-gradient">
-          <TheaterLights />
-          <header className="relative z-10 flex shrink-0 items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
-            <ShowBrandTitle size="sm" light className="items-start" />
-            <button
-              type="button"
-              onClick={() => {
-                clearSession();
-                setRoleState(null);
-              }}
-              className="shrink-0 rounded-xl border-2 border-tava-yellow bg-tava-yellow px-3 py-1.5 text-xs font-black text-tava-blue"
-            >
-              Salir
-            </button>
-          </header>
-          <main className="relative z-10 flex min-h-0 flex-1 overflow-hidden">
-            <VotingParticipantView />
-          </main>
-        </div>
-      </>
+      <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-theater-gradient">
+        <TheaterLights />
+        <header className="relative z-10 flex shrink-0 items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
+          <BrandIntroLoop size="corner" align="start" className="h-14 w-[7.5rem] sm:h-16 sm:w-36" />
+          <button
+            type="button"
+            onClick={() => {
+              clearSession();
+              setRoleState(null);
+            }}
+            className="shrink-0 rounded-xl border-2 border-tava-yellow bg-tava-yellow px-3 py-1.5 text-xs font-black text-tava-blue"
+          >
+            Salir
+          </button>
+        </header>
+        <main className="relative z-10 flex min-h-0 flex-1 overflow-hidden">
+          <VotingParticipantView />
+        </main>
+      </div>
     );
   }
 
@@ -234,7 +224,7 @@ export default function HomePage() {
       <TheaterLights />
 
       <header className="relative z-10 flex shrink-0 items-center justify-between px-4 py-3 sm:px-6">
-        <ShowBrandTitle size="sm" light className="items-start" />
+        <BrandIntroLoop size="corner" align="start" className="h-14 w-[7.5rem] sm:h-16 sm:w-36" />
         <div className="flex gap-2">
           <button
             type="button"
