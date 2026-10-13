@@ -31,7 +31,7 @@ import {
   FAVORITES_LIST_ID,
   RANDOM_LIST_NAME,
 } from "@/lib/default-words";
-import { clearSession, getRole, type UserRole } from "@/lib/role-storage";
+import { clearSession, getRole, getSessionId, type UserRole } from "@/lib/role-storage";
 import type { WordList } from "@/types";
 
 type Screen = "hub" | "game";
@@ -151,7 +151,8 @@ export default function HomePage() {
   if (role === "participant") {
     return (
       <>
-        <BrandIntro />
+        {/* Cada ingreso a la sala: intro de marca (sin sessionStorage) */}
+        <BrandIntro key={`intro-participant-${getSessionId() || "new"}`} />
         <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-theater-gradient">
           <TheaterLights />
           <header className="relative z-10 flex shrink-0 items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
@@ -229,9 +230,7 @@ export default function HomePage() {
   const { title, subtitle } = MODULE_COPY[module];
 
   return (
-    <>
-      <BrandIntro />
-      <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-theater-gradient pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
+    <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-theater-gradient pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
       <TheaterLights />
 
       <header className="relative z-10 flex shrink-0 items-center justify-between px-4 py-3 sm:px-6">
@@ -361,6 +360,5 @@ export default function HomePage() {
       {panel === "stats" && <StatsPanel onClose={() => setPanel(null)} />}
       {module !== "voting" && <ControlDock aboveNav />}
     </div>
-    </>
   );
 }

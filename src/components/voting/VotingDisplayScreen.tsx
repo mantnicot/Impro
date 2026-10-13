@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { BrandIntroLoop, BrandIntroTransition } from "@/components/BrandIntro";
 import ShowAtmosphere from "@/components/ShowAtmosphere";
 import { ShowBrandTitle } from "@/components/ShowBrandTitle";
 import {
@@ -126,12 +127,14 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
   const [visibleScene, setVisibleScene] = useState<DisplayScene>("lobby");
   const [telonKey, setTelonKey] = useState(0);
   const [telonPlaying, setTelonPlaying] = useState(false);
+  const [transitionKind, setTransitionKind] = useState<"telon" | "brand">("telon");
 
   const lastSpinRef = useRef<string | null>(null);
   const firstSceneReady = useRef(false);
   const pendingSceneRef = useRef<DisplayScene | null>(null);
   const visibleSceneRef = useRef<DisplayScene>("lobby");
   const telonPlayingRef = useRef(false);
+  const transitionKindRef = useRef<"telon" | "brand">("telon");
   const fingerprintRef = useRef("");
   const sessionRef = useRef<VotingSession | null>(null);
 
@@ -152,10 +155,14 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
   }, [session]);
 
   const applySceneChange = useCallback((nextScene: DisplayScene) => {
-    // Mismo tipo de escena (ej. solo cambia el juego activo): actualiza sin telón.
+    // Mismo tipo de escena (ej. solo cambia el juego activo): actualiza sin transición.
     if (nextScene === visibleSceneRef.current) return;
     pendingSceneRef.current = nextScene;
     if (telonPlayingRef.current) return;
+    // Votación: animación de marca TAVA; el resto: telón.
+    const kind: "telon" | "brand" = nextScene === "voting" ? "brand" : "telon";
+    transitionKindRef.current = kind;
+    setTransitionKind(kind);
     setTelonPlaying(true);
     telonPlayingRef.current = true;
     setTelonKey((key) => key + 1);
@@ -314,12 +321,21 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
         onComplete={() => setRouletteOpen(false)}
       />
 
-      <TelonTransition
-        playKey={telonKey}
-        playing={telonPlaying}
-        onMidpoint={handleTelonMidpoint}
-        onComplete={handleTelonComplete}
-      />
+      {transitionKind === "brand" ? (
+        <BrandIntroTransition
+          playKey={telonKey}
+          playing={telonPlaying}
+          onMidpoint={handleTelonMidpoint}
+          onComplete={handleTelonComplete}
+        />
+      ) : (
+        <TelonTransition
+          playKey={telonKey}
+          playing={telonPlaying}
+          onMidpoint={handleTelonMidpoint}
+          onComplete={handleTelonComplete}
+        />
+      )}
 
       <ProjectorChrome />
 
@@ -399,37 +415,35 @@ function SceneContent({
 
   if (scene === "lobby") {
     return (
-      <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <div>
+      <div className="grid h-full items-center gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8">
+        <BrandIntroLoop className="mx-auto h-[min(52vh,28rem)] w-full max-w-xl lg:mx-0 lg:h-[min(70vh,36rem)]" />
+        <div className="flex flex-col items-center text-center lg:items-end lg:text-right">
           <p className="font-hand text-3xl text-tava-yellow sm:text-4xl">Entren al show</p>
           <HeroText>
-            <h1 className="mt-2 font-display text-6xl leading-none tracking-wide text-white sm:text-7xl md:text-8xl">
+            <h1 className="mt-2 font-display text-5xl leading-none tracking-wide text-white sm:text-6xl md:text-7xl">
               ESCANEEN EL QR
             </h1>
           </HeroText>
-          <p className="mt-4 max-w-xl text-lg text-white/75 sm:text-xl">
+          <p className="mt-3 max-w-md text-lg text-white/75 sm:text-xl lg:ml-auto">
             O escriban el codigo en el celular. No hace falta cuenta.
           </p>
-          <GlowText className="mt-8 font-display text-6xl tracking-[0.25em] text-tava-yellow sm:text-7xl">
+          <GlowText className="mt-5 font-display text-5xl tracking-[0.25em] text-tava-yellow sm:text-6xl">
             {session.code}
           </GlowText>
+          <PulseFrame className="mt-6 justify-self-center" radiusClass="rounded-[2rem]">
+            <div className="rounded-[2rem] border-4 border-tava-yellow bg-white p-4 shadow-[12px_12px_0_rgba(11,18,32,0.35)]">
+              {qrSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={qrSrc} alt={`QR ${session.code}`} className="h-56 w-56 sm:h-72 sm:w-72" />
+              ) : (
+                <div className="flex h-56 w-56 items-center justify-center text-tava-blue sm:h-72 sm:w-72">
+                  Generando QR…
+                </div>
+              )}
+              <p className="mt-3 max-w-[18rem] break-all text-center text-xs text-gray-500">{joinUrl}</p>
+            </div>
+          </PulseFrame>
         </div>
-        <PulseFrame
-          className="justify-self-center"
-          radiusClass="rounded-[2rem]"
-        >
-          <div className="rounded-[2rem] border-4 border-tava-yellow bg-white p-4 shadow-[12px_12px_0_rgba(11,18,32,0.35)]">
-            {qrSrc ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={qrSrc} alt={`QR ${session.code}`} className="h-64 w-64 sm:h-80 sm:w-80" />
-            ) : (
-              <div className="flex h-64 w-64 items-center justify-center text-tava-blue sm:h-80 sm:w-80">
-                Generando QR…
-              </div>
-            )}
-            <p className="mt-3 max-w-[20rem] break-all text-center text-xs text-gray-500">{joinUrl}</p>
-          </div>
-        </PulseFrame>
       </div>
     );
   }
