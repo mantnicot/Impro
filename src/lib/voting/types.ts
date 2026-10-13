@@ -39,6 +39,12 @@ export interface Artist {
   created_at: string;
 }
 
+/** Ultimo objeto/premisa sorteado (selected_objects acumula el historial de la ronda). */
+export function currentDrawnObject(selected?: string[] | null): string {
+  if (!selected?.length) return "";
+  return selected[selected.length - 1] ?? "";
+}
+
 export interface Vote {
   id: string;
   session_id: string;

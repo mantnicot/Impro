@@ -92,7 +92,7 @@ export function resolveEffectiveDisplayScene(session: {
   const hint = detectGameModeHint(getActiveDailyGame(session));
 
   if (hint === "voting") {
-    return session.show_results ? "general" : "voting";
+    return session.show_results ? "results" : "voting";
   }
 
   if (hint === "objects") {
@@ -102,7 +102,7 @@ export function resolveEffectiveDisplayScene(session: {
   }
 
   if (session.is_open) return "voting";
-  if (session.show_results) return "general";
+  if (session.show_results) return "results";
   return "general";
 }
 

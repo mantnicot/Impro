@@ -490,7 +490,8 @@ export function VotingAdminPanel() {
         return;
       }
       applySessionNow(data.session);
-      const winner = data.winner ?? data.selectedObjects?.[0] ?? "";
+      const history = (data.selectedObjects ?? data.session?.selected_objects ?? []) as string[];
+      const winner = data.winner ?? history[history.length - 1] ?? "";
       const candidates = data.rouletteCandidates ?? data.session?.roulette_candidates ?? [];
       setRouletteItems(candidates.length > 0 ? candidates : winner ? [winner] : []);
       setRouletteWinner(winner);
@@ -669,7 +670,7 @@ export function VotingAdminPanel() {
               </div>
               {selectedObjects.length > 0 && (
                 <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-center font-display text-lg font-black text-amber-900">
-                  {selectedObjects[0]}
+                  {selectedObjects[selectedObjects.length - 1]}
                 </div>
               )}
               <div className="mt-3 grid grid-cols-1 gap-2">

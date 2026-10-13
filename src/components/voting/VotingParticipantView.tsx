@@ -5,7 +5,12 @@ import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { clearSession, getSessionCode, getSessionId, getVoterId } from "@/lib/role-storage";
 import { detectGameModeHint, getActiveDailyGame } from "@/lib/voting/display-scene";
 import { formatSubmissionDisplay } from "@/lib/voting/submission-display";
-import type { Artist, ArtistResult, VotingSession } from "@/lib/voting/types";
+import {
+  currentDrawnObject,
+  type Artist,
+  type ArtistResult,
+  type VotingSession,
+} from "@/lib/voting/types";
 import { ArtistIdentityCard, PaniniVoteRail } from "./ArtistIdentityCard";
 import { contrastOnColor } from "@/lib/voting/artist-style";
 import { DailyGamesFab } from "./DailyGamesFab";
@@ -272,7 +277,7 @@ export function VotingParticipantView() {
       return;
     }
 
-    const winner = nextSession.selected_objects?.[0] ?? "";
+    const winner = currentDrawnObject(nextSession.selected_objects);
     const storageKey = rouletteStorageKey(sessionId);
     const objectsLive = isObjectsGameLive(nextSession);
 

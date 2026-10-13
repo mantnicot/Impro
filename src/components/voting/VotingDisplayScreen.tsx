@@ -11,8 +11,15 @@ import {
   shouldShowStageRoulette,
   type DisplayScene,
 } from "@/lib/voting/display-scene";
-import type { ArtistResult, DailyGame, VotingSession, VotingSummary } from "@/lib/voting/types";
+import {
+  currentDrawnObject,
+  type ArtistResult,
+  type DailyGame,
+  type VotingSession,
+  type VotingSummary,
+} from "@/lib/voting/types";
 import { TelonTransition } from "./TelonTransition";
+import { WinnerPodiumReveal } from "./WinnerPodiumReveal";
 import { WordRoulette } from "./WordRoulette";
 
 interface VotingDisplayScreenProps {
@@ -99,7 +106,7 @@ function sessionFingerprint(session: VotingSession): string {
     session.show_results ? 1 : 0,
     session.object_collection_open ? 1 : 0,
     session.roulette_spun_at ?? "",
-    session.selected_objects?.[0] ?? "",
+    currentDrawnObject(session.selected_objects),
     (session.daily_games ?? []).length,
   ].join("|");
 }
@@ -172,7 +179,7 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
       const configured = resolveDisplayScene(next.display_scene);
       const effective = resolveEffectiveDisplayScene(next);
       const spunAt = next.roulette_spun_at;
-      const winner = next.selected_objects?.[0] ?? "";
+      const winner = currentDrawnObject(next.selected_objects);
       const allowRoulette = shouldShowStageRoulette(next);
 
       if (!firstSceneReady.current) {
@@ -302,39 +309,48 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
 
       <ProjectorChrome />
 
-      <div className="relative z-10 flex h-full flex-col px-6 py-5 sm:px-10 sm:py-8">
-        <header className="flex items-start justify-between gap-4 pr-28 sm:pr-36">
-          <ShowBrandTitle size="md" light className="items-start" />
-          <div className="text-right">
-            <p className="font-hand text-2xl text-tava-yellow sm:text-3xl">{session?.title}</p>
-            <p className="font-display text-2xl tracking-[0.2em] text-white/80 sm:text-3xl">
-              {session?.code}
-            </p>
-          </div>
-        </header>
+      {visibleScene === "results" ? (
+        <div className="relative z-10 h-full w-full">
+          {results.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+              <p className="font-hand text-3xl text-tava-yellow">Ranking de la noche</p>
+              <h1 className="font-display text-5xl tracking-wide text-white">SIN VOTOS AUN</h1>
+            </div>
+          ) : (
+            <WinnerPodiumReveal results={results} title={session?.title || "Ranking de la noche"} />
+          )}
+        </div>
+      ) : (
+        <div className="relative z-10 flex h-full flex-col px-6 py-5 sm:px-10 sm:py-8">
+          <header className="flex items-start justify-between gap-4 pr-28 sm:pr-36">
+            <ShowBrandTitle size="md" light className="items-start" />
+            <div className="text-right">
+              <p className="font-hand text-2xl text-tava-yellow sm:text-3xl">{session?.title}</p>
+              <p className="font-display text-2xl tracking-[0.2em] text-white/80 sm:text-3xl">
+                {session?.code}
+              </p>
+            </div>
+          </header>
 
-        <main className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
-          <div
-            className={`w-full ${
-              visibleScene === "general" || visibleScene === "games" || visibleScene === "results"
-                ? "h-full max-w-7xl"
-                : "max-w-6xl"
-            }`}
-          >
-            <SceneContent
-              scene={
-                visibleScene === "games" || visibleScene === "results" ? "general" : visibleScene
-              }
-              session={session!}
-              summary={summary}
-              results={results}
-              qrSrc={qrSrc}
-              joinUrl={joinUrl}
-              rouletteOpen={rouletteOpen}
-            />
-          </div>
-        </main>
-      </div>
+          <main className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+            <div
+              className={`w-full ${
+                visibleScene === "general" || visibleScene === "games" ? "h-full max-w-7xl" : "max-w-6xl"
+              }`}
+            >
+              <SceneContent
+                scene={visibleScene === "games" ? "general" : visibleScene}
+                session={session!}
+                summary={summary}
+                results={results}
+                qrSrc={qrSrc}
+                joinUrl={joinUrl}
+                rouletteOpen={rouletteOpen}
+              />
+            </div>
+          </main>
+        </div>
+      )}
     </div>
   );
 }
@@ -356,7 +372,7 @@ function SceneContent({
   joinUrl: string;
   rouletteOpen: boolean;
 }) {
-  const winner = session.selected_objects?.[0] ?? "";
+  const winner = currentDrawnObject(session.selected_objects);
   const games = session.daily_games ?? [];
 
   if (scene === "black") {
@@ -473,7 +489,18 @@ function SceneContent({
     );
   }
 
-  if (scene === "general" || scene === "games" || scene === "results" || scene === "auto") {
+  if (scene === "results") {
+    return results.length === 0 ? (
+      <div className="text-center">
+        <p className="font-hand text-3xl text-tava-yellow">Ranking de la noche</p>
+        <h1 className="mt-2 font-display text-5xl tracking-wide text-white">SIN VOTOS AUN</h1>
+      </div>
+    ) : (
+      <WinnerPodiumReveal results={results} title={session.title} className="relative h-[70vh] w-full" />
+    );
+  }
+
+  if (scene === "general" || scene === "games" || scene === "auto") {
     const activeIndex =
       games.length > 0
         ? Math.max(0, Math.min(session.active_game_index ?? 0, games.length - 1))

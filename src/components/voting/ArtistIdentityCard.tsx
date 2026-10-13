@@ -16,6 +16,7 @@ interface ArtistIdentityCardProps {
   albumNumber?: number;
   /** Columna de votos a la derecha (1–5) */
   voteRail?: ReactNode;
+  className?: string;
 }
 
 function artistColor(artist: Artist): string {
@@ -37,6 +38,7 @@ export function ArtistIdentityCard({
   stage = false,
   albumNumber,
   voteRail,
+  className = "",
 }: ArtistIdentityCardProps) {
   const color = artistColor(artist);
   const ink = contrastOnColor(color);
@@ -48,7 +50,7 @@ export function ArtistIdentityCard({
       <article
         className={`relative overflow-hidden rounded-2xl border-4 border-tava-yellow shadow-[4px_4px_0_rgba(11,18,32,0.25)] transition ${
           muted ? "opacity-70" : ""
-        }`}
+        } ${className}`}
         style={{ backgroundColor: color, color: ink }}
       >
         <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:radial-gradient(currentColor_0.7px,transparent_0.7px)] [background-size:10px_10px]" />
@@ -63,8 +65,12 @@ export function ArtistIdentityCard({
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[9px] font-black uppercase tracking-[0.18em] opacity-80">Panini · #TAVA</p>
-            <h3 className="truncate font-display text-lg leading-tight tracking-wide">{artist.name}</h3>
-            <p className="mt-0.5 truncate font-hand text-sm opacity-90">{artist.tagline || "En el acto"}</p>
+            <h3 className="truncate font-display text-xl leading-tight tracking-wide sm:text-2xl">
+              {artist.name}
+            </h3>
+            <p className="mt-1 line-clamp-2 font-hand text-base leading-snug opacity-95 sm:text-lg">
+              {artist.tagline || "En el acto"}
+            </p>
           </div>
         </div>
         {children && <div className="relative border-t border-white/20 bg-black/10 px-3 py-3">{children}</div>}
@@ -78,7 +84,7 @@ export function ArtistIdentityCard({
         stage
           ? "h-[min(72dvh,560px)] w-full max-w-md rounded-[1.75rem] sm:h-[min(74dvh,640px)]"
           : "min-h-[420px] w-full max-w-sm rounded-[1.75rem]"
-      } ${muted ? "opacity-80" : ""}`}
+      } ${muted ? "opacity-80" : ""} ${className}`}
       style={{ backgroundColor: color, color: ink }}
     >
       {/* Halftone TAVA */}
@@ -96,22 +102,33 @@ export function ArtistIdentityCard({
 
       {/* Contenido principal */}
       <div className="relative flex min-w-0 flex-1 flex-col">
-        <header className="flex items-start justify-between gap-2 px-3 pt-3 sm:px-4 sm:pt-4">
-          <div>
-            <p className="font-display text-sm tracking-[0.12em] text-tava-yellow drop-shadow-[2px_2px_0_rgba(11,18,32,0.45)] sm:text-base">
-              #TAVA
-            </p>
-            <span className="-mt-0.5 inline-block -rotate-1 bg-tava-red px-2 py-0.5 font-display text-[10px] uppercase tracking-[0.16em] text-white shadow-[2px_2px_0_rgba(11,18,32,0.35)] sm:text-xs">
-              en el acto
-            </span>
-          </div>
-          <div className="rounded-md border-2 border-tava-yellow bg-white px-1.5 py-1 text-center shadow-sm">
-            <p className="font-display text-[9px] leading-none tracking-wide text-tava-blue">PANINI</p>
-            <p className="mt-0.5 font-hand text-[10px] leading-none text-tava-red">TAVA</p>
+        <header className="relative z-10 px-3 pt-3 sm:px-4 sm:pt-4">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                <span className="font-display text-[10px] tracking-[0.14em] text-tava-yellow drop-shadow-[2px_2px_0_rgba(11,18,32,0.45)] sm:text-xs">
+                  #TAVA
+                </span>
+                <span className="-rotate-1 bg-tava-red px-1.5 py-0.5 font-display text-[9px] uppercase tracking-[0.14em] text-white shadow-[2px_2px_0_rgba(11,18,32,0.35)]">
+                  en el acto
+                </span>
+              </div>
+              <h3
+                className={`break-words font-display leading-[0.95] tracking-wide drop-shadow-[2px_2px_0_rgba(11,18,32,0.25)] ${
+                  stage ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl"
+                }`}
+              >
+                {artist.name}
+              </h3>
+            </div>
+            <div className="shrink-0 rounded-md border-2 border-tava-yellow bg-white px-1.5 py-1 text-center shadow-sm">
+              <p className="font-display text-[9px] leading-none tracking-wide text-tava-blue">PANINI</p>
+              <p className="mt-0.5 font-hand text-[10px] leading-none text-tava-red">TAVA</p>
+            </div>
           </div>
         </header>
 
-        <div className="relative mx-auto mt-1 flex min-h-0 w-full flex-1 items-end justify-center px-2 pb-2 sm:px-3">
+        <div className="relative mx-auto mt-1 flex min-h-0 w-full flex-1 items-end justify-center px-2 pb-1 sm:px-3">
           {photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -121,7 +138,7 @@ export function ArtistIdentityCard({
             />
           ) : (
             <div
-              className="mb-6 flex h-40 w-40 items-center justify-center rounded-full border-4 border-white/50 bg-black/15 font-display text-5xl sm:h-48 sm:w-48 sm:text-6xl"
+              className="mb-4 flex h-36 w-36 items-center justify-center rounded-full border-4 border-white/50 bg-black/15 font-display text-5xl sm:h-44 sm:w-44 sm:text-6xl"
               style={{ color: ink }}
             >
               {initials(artist.name)}
@@ -129,9 +146,10 @@ export function ArtistIdentityCard({
           )}
         </div>
 
-        <footer className="relative border-t-4 border-tava-yellow bg-[rgba(11,18,32,0.88)] px-3 py-3 text-white sm:px-4 sm:py-3.5">
-          <p className="font-hand text-sm text-tava-yellow sm:text-base">{artist.tagline || "Impro TAVA"}</p>
-          <h3 className="font-display text-2xl leading-none tracking-wide sm:text-3xl">{artist.name}</h3>
+        <footer className="relative border-t-4 border-tava-yellow bg-[rgba(11,18,32,0.9)] px-3 py-3.5 text-white sm:px-4 sm:py-4">
+          <p className="font-hand text-xl leading-snug text-tava-yellow sm:text-2xl">
+            {artist.tagline || "Impro TAVA"}
+          </p>
         </footer>
       </div>
 

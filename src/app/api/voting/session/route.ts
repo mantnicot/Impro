@@ -361,33 +361,64 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (body.action === "draw_objects") {
+      const round = session.current_round ?? 1;
       const { data: objectRows, error: objectsError } = await db
         .from("round_object_submissions")
         .select("*")
         .eq("session_id", session.id)
-        .eq("round", session.current_round ?? 1);
+        .eq("round", round);
       if (objectsError) return NextResponse.json({ error: objectsError.message }, { status: 500 });
 
-      const objectNames = uniqueObjectNames((objectRows ?? []) as RoundObjectSubmission[]);
-      const currentSelection = new Set(
+      const rows = (objectRows ?? []) as RoundObjectSubmission[];
+      const objectNames = uniqueObjectNames(rows);
+      // Ya sorteadas esta ronda (histórico en selected_objects)
+      const alreadyDrawn = new Set(
         (session.selected_objects ?? []).map((name) => name.toLocaleLowerCase("es"))
       );
-      const availableObjects =
-        objectNames.length > 1
-          ? objectNames.filter((name) => !currentSelection.has(name.toLocaleLowerCase("es")))
-          : objectNames;
+      const availableObjects = objectNames.filter(
+        (name) => !alreadyDrawn.has(name.toLocaleLowerCase("es"))
+      );
       const selected = drawObjects(availableObjects, 1);
       if (selected.length === 0) {
-        return NextResponse.json({ error: "Aun no hay propuestas para sortear" }, { status: 400 });
+        return NextResponse.json(
+          {
+            error:
+              availableObjects.length === 0 && objectNames.length > 0
+                ? "Ya se sortearon todas las propuestas. Abre de nuevo la recepcion para recibir mas."
+                : "Aun no hay propuestas para sortear",
+          },
+          { status: 400 }
+        );
       }
 
-      const rouletteCandidates = objectNames.length > 0 ? objectNames : selected;
+      const winner = selected[0]!;
+      // Ruleta solo con las que aun estan en juego (incluye al ganador de este giro)
+      const rouletteCandidates = availableObjects.length > 0 ? availableObjects : selected;
       const spunAt = new Date().toISOString();
+      // Acumula ganadores de la ronda; el actual es el ultimo
+      const selectedHistory = [...(session.selected_objects ?? []), winner].filter(
+        (name, index, arr) =>
+          arr.findIndex((item) => item.toLocaleLowerCase("es") === name.toLocaleLowerCase("es")) ===
+          index
+      );
+
+      // Borra esa premisa/frase del pool para que no vuelva a salir
+      const winnerKey = winner.toLocaleLowerCase("es");
+      const idsToRemove = rows
+        .filter((row) => row.object_name.toLocaleLowerCase("es") === winnerKey)
+        .map((row) => row.id);
+      if (idsToRemove.length > 0) {
+        const { error: deleteError } = await db
+          .from("round_object_submissions")
+          .delete()
+          .in("id", idsToRemove);
+        if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      }
 
       const { data, error } = await db
         .from("voting_sessions")
         .update({
-          selected_objects: selected,
+          selected_objects: selectedHistory,
           object_collection_open: false,
           roulette_candidates: rouletteCandidates,
           roulette_spun_at: spunAt,
@@ -399,9 +430,9 @@ export async function PATCH(request: NextRequest) {
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({
         session: normalizeSession(data as unknown as StoredSession),
-        selectedObjects: selected,
+        selectedObjects: selectedHistory,
         rouletteCandidates,
-        winner: selected[0],
+        winner,
       });
     }
 
