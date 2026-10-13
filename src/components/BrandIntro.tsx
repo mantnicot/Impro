@@ -1,29 +1,18 @@
 "use client";
 
 /**
- * BrandIntro — marca TAVA:
- * - overlay: fullscreen al ingresar (saltable)
- * - loop: solo letras, sin caja ni fondo (lobby)
- * - transition: solo letras sobre el fondo animado (sin telón opaco)
+ * Marca TAVA:
+ * - BrandIntroLoop: letras flotando (esquina / join)
+ * - BrandIntroTransition: overlay al pasar a votación
  */
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
-/** Overlay / bucle de marca */
-export const BRAND_INTRO_MS = 3200;
-/** Transición a votación: más corta */
 export const BRAND_TRANSITION_MS = 2000;
 export const BRAND_TRANSITION_MID_MS = 900;
 
-export type BrandIntroSize = "corner" | "hero" | "stage" | "full";
+export type BrandIntroSize = "corner" | "hero" | "stage";
 
 const SIZE_STYLES: Record<
   BrandIntroSize,
@@ -53,142 +42,144 @@ const SIZE_STYLES: Record<
     gap: "mt-3",
     border: "border-4 px-4 py-0.5 shadow-[8px_8px_0_#0B1220]",
   },
-  full: {
-    title: "clamp(4rem, 17vw, 13rem)",
-    ribbon: "clamp(1.5rem, 5vw, 3.75rem)",
-    tag: "clamp(2rem, 6vw, 4.5rem)",
-    pad: "px-4 sm:px-6",
-    gap: "mt-4",
-    border: "border-4 px-6 py-1 shadow-[8px_8px_0_#0B1220]",
-  },
 };
 
-type BrandIntroStageProps = {
-  cycleKey: number;
-  size?: BrandIntroSize;
-  /** @deprecated usar size="stage" */
-  compact?: boolean;
-  /** Solo tipografía: sin gradiente, rayos ni flash. */
-  lettersOnly?: boolean;
-  /** Ritmo más corto (transición a votación). */
-  pace?: "normal" | "fast";
-  align?: "center" | "start";
-  logo?: ReactNode;
-  reduceMotion?: boolean | null;
-};
+const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+const EASE_SOFT = [0.45, 0.05, 0.55, 0.95] as const;
 
-/** Una pasada de la coreografía; remonta con cycleKey para repetir. */
-export function BrandIntroStage({
-  cycleKey,
+function BrandMark({
   size,
-  compact = false,
-  lettersOnly = false,
-  pace = "normal",
   align = "center",
   logo,
-  reduceMotion,
-}: BrandIntroStageProps) {
-  const reduceHook = useReducedMotion();
-  const reduce = reduceMotion ?? reduceHook;
-  const resolved: BrandIntroSize = size ?? (compact ? "stage" : "full");
-  const s = SIZE_STYLES[resolved];
-  const slow = pace === "normal" && (resolved === "corner" || resolved === "hero");
-  const fast = pace === "fast";
-
-  const springSlow = {
-    type: "spring" as const,
-    stiffness: fast ? 200 : slow ? 70 : 90,
-    damping: fast ? 16 : 18,
-  };
-  const dTitle = reduce ? 0 : fast ? 0.05 : slow ? 0.35 : 0.25;
-  const dRibbon = reduce ? 0 : fast ? 0.25 : slow ? 1.4 : 1.1;
-  const dTag = reduce ? 0 : fast ? 0.45 : slow ? 2.4 : 2;
-  const dLine = reduce ? 0 : fast ? 0.55 : slow ? 2.9 : 2.4;
-
+}: {
+  size: BrandIntroSize;
+  align?: "center" | "start";
+  logo?: ReactNode;
+}) {
+  const s = SIZE_STYLES[size];
   return (
     <div
-      key={cycleKey}
-      className={`relative flex h-full w-full overflow-hidden ${
+      className={`relative z-10 flex h-full w-full flex-col text-center ${s.pad} ${
         align === "start" ? "items-start justify-start" : "items-center justify-center"
       }`}
     >
-      {!lettersOnly && (
-        <>
-          <div className="bg-theater-gradient absolute inset-0" aria-hidden />
-          <div className="bg-halftone-dots absolute inset-0 opacity-50" aria-hidden />
-        </>
+      {logo ?? (
+        <span
+          className="font-display block leading-none text-white"
+          style={{
+            fontSize: s.title,
+            textShadow: "0.06em 0.06em 0 #D61A21",
+            letterSpacing: "0.02em",
+          }}
+        >
+          TAVA
+        </span>
       )}
+      <div className={`-skew-x-6 border-[#FFC600] bg-[#D61A21] ${s.gap} ${s.border}`}>
+        <span
+          className="font-display block uppercase leading-tight text-white"
+          style={{ fontSize: s.ribbon, letterSpacing: "0.12em" }}
+        >
+          En el acto
+        </span>
+      </div>
+      <div className={`relative ${s.gap}`}>
+        <span className="font-hand block text-[#FFC600]" style={{ fontSize: s.tag }}>
+          #TAVA
+        </span>
+        <svg
+          aria-hidden
+          viewBox="0 0 200 14"
+          className={`absolute left-0 w-full ${size === "corner" ? "-bottom-1 h-2" : "-bottom-2 h-3"}`}
+          preserveAspectRatio="none"
+        >
+          <path
+            d="M2 9 C 40 2, 80 14, 120 6 S 178 4, 198 8"
+            fill="none"
+            stroke="#FFFFFF"
+            strokeWidth={size === "corner" ? 3 : 4}
+            strokeLinecap="round"
+          />
+        </svg>
+      </div>
+    </div>
+  );
+}
 
-      <div
-        className={`relative z-10 flex flex-col text-center ${s.pad} ${
-          align === "start" ? "items-start" : "items-center"
-        }`}
-      >
+/** Coreografía one-shot (transición a votación). */
+function BrandIntroStage({
+  playKey,
+  reduce,
+}: {
+  playKey: number;
+  reduce: boolean | null;
+}) {
+  const title =
+    "clamp(4rem, 17vw, 13rem)";
+  const ribbon = "clamp(1.5rem, 5vw, 3.75rem)";
+  const tag = "clamp(2rem, 6vw, 4.5rem)";
+
+  return (
+    <div
+      key={playKey}
+      className="relative flex h-full w-full items-center justify-center overflow-hidden"
+    >
+      <div className="relative z-10 flex flex-col items-center px-4 text-center sm:px-6">
         <motion.div
           initial={reduce ? false : { opacity: 0, scale: 0.55, rotate: -8 }}
           animate={{ opacity: 1, scale: 1, rotate: -2 }}
-          transition={{ ...springSlow, delay: dTitle }}
+          transition={{ type: "spring", stiffness: 200, damping: 16, delay: reduce ? 0 : 0.05 }}
         >
-          {logo ?? (
-            <span
-              className="font-display block leading-none text-white"
-              style={{
-                fontSize: s.title,
-                textShadow: "0.06em 0.06em 0 #D61A21",
-                letterSpacing: "0.02em",
-              }}
-            >
-              TAVA
-            </span>
-          )}
+          <span
+            className="font-display block leading-none text-white"
+            style={{
+              fontSize: title,
+              textShadow: "0.06em 0.06em 0 #D61A21",
+              letterSpacing: "0.02em",
+            }}
+          >
+            TAVA
+          </span>
         </motion.div>
 
         <motion.div
-          className={`-skew-x-6 border-[#FFC600] bg-[#D61A21] ${s.gap} ${s.border}`}
-          initial={reduce ? false : { opacity: 0, y: slow ? 24 : 40 }}
+          className="mt-4 -skew-x-6 border-4 border-[#FFC600] bg-[#D61A21] px-6 py-1 shadow-[8px_8px_0_#0B1220]"
+          initial={reduce ? false : { opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...springSlow, delay: dRibbon }}
+          transition={{ type: "spring", stiffness: 200, damping: 16, delay: reduce ? 0 : 0.25 }}
         >
           <span
             className="font-display block uppercase leading-tight text-white"
-            style={{ fontSize: s.ribbon, letterSpacing: "0.12em" }}
+            style={{ fontSize: ribbon, letterSpacing: "0.12em" }}
           >
             En el acto
           </span>
         </motion.div>
 
         <motion.div
-          className={`relative ${s.gap}`}
+          className="relative mt-5"
           initial={reduce ? false : { opacity: 0, rotate: -6, y: 12 }}
           animate={{ opacity: 1, rotate: -3, y: 0 }}
-          transition={{
-            duration: fast ? 0.45 : slow ? 1.35 : 1.1,
-            ease: "easeOut",
-            delay: dTag,
-          }}
+          transition={{ duration: 0.45, ease: "easeOut", delay: reduce ? 0 : 0.45 }}
         >
-          <span className="font-hand block text-[#FFC600]" style={{ fontSize: s.tag }}>
+          <span className="font-hand block text-[#FFC600]" style={{ fontSize: tag }}>
             #TAVA
           </span>
           <svg
             aria-hidden
             viewBox="0 0 200 14"
-            className={`absolute left-0 w-full ${resolved === "corner" ? "-bottom-1 h-2" : "-bottom-2 h-3"}`}
+            className="absolute -bottom-2 left-0 h-3 w-full"
             preserveAspectRatio="none"
           >
             <motion.path
               d="M2 9 C 40 2, 80 14, 120 6 S 178 4, 198 8"
               fill="none"
               stroke="#FFFFFF"
-              strokeWidth={resolved === "corner" ? 3 : 4}
+              strokeWidth="4"
               strokeLinecap="round"
               initial={reduce ? false : { pathLength: 0 }}
               animate={{ pathLength: 1 }}
-              transition={{
-                duration: fast ? 0.5 : slow ? 1.5 : 1.2,
-                ease: "easeOut",
-                delay: dLine,
-              }}
+              transition={{ duration: 0.5, ease: "easeOut", delay: reduce ? 0 : 0.55 }}
             />
           </svg>
         </motion.div>
@@ -197,69 +188,7 @@ export function BrandIntroStage({
   );
 }
 
-type OverlayProps = {
-  logo?: ReactNode;
-  onDone?: () => void;
-};
-
-/** Fullscreen al entrar: siempre se muestra; se salta con tap/tecla. */
-export default function BrandIntro({ logo, onDone }: OverlayProps) {
-  const reduce = useReducedMotion();
-  const [leaving, setLeaving] = useState(false);
-  const [done, setDone] = useState(false);
-
-  const leave = useCallback(() => {
-    setLeaving(true);
-  }, []);
-
-  useEffect(() => {
-    const t = window.setTimeout(leave, reduce ? 900 : BRAND_INTRO_MS);
-    return () => window.clearTimeout(t);
-  }, [reduce, leave]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" || e.key === "Enter" || e.key === " ") leave();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [leave]);
-
-  if (done) return null;
-
-  const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      leave();
-    }
-  };
-
-  return (
-    <motion.div
-      role="button"
-      tabIndex={0}
-      aria-label="Saltar intro de TAVA"
-      onClick={leave}
-      onKeyDown={onKeyDown}
-      className="fixed inset-0 z-[100] cursor-pointer overflow-hidden bg-[#0B1220] outline-none"
-      style={{ pointerEvents: leaving ? "none" : "auto" }}
-      initial={false}
-      animate={leaving ? { opacity: 0, scale: 1.05 } : { opacity: 1, scale: 1 }}
-      transition={{ duration: reduce ? 0.2 : 0.45, ease: "easeOut" }}
-      onAnimationComplete={() => {
-        if (leaving) {
-          setDone(true);
-          onDone?.();
-        }
-      }}
-    >
-      <BrandIntroStage cycleKey={0} logo={logo} reduceMotion={reduce} />
-      <span className="sr-only">Toca o presiona una tecla para saltar la intro</span>
-    </motion.div>
-  );
-}
-
-/** Bucle continuo: solo letras. Sin remount (más fluido). */
+/** Bucle continuo: solo letras. Sin remount. */
 export function BrandIntroLoop({
   className = "",
   size = "stage",
@@ -272,7 +201,6 @@ export function BrandIntroLoop({
   logo?: ReactNode;
 }) {
   const reduce = useReducedMotion();
-  const s = SIZE_STYLES[size];
 
   return (
     <motion.div
@@ -294,63 +222,19 @@ export function BrandIntroLoop({
         reduce
           ? { duration: 0.25 }
           : {
-              opacity: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
-              y: { duration: 5.5, repeat: Infinity, ease: [0.45, 0.05, 0.55, 0.95] },
-              scale: { duration: 5.5, repeat: Infinity, ease: [0.45, 0.05, 0.55, 0.95] },
-              rotate: { duration: 7.5, repeat: Infinity, ease: [0.45, 0.05, 0.55, 0.95] },
+              opacity: { duration: 0.55, ease: EASE_OUT },
+              y: { duration: 5.5, repeat: Infinity, ease: EASE_SOFT },
+              scale: { duration: 5.5, repeat: Infinity, ease: EASE_SOFT },
+              rotate: { duration: 7.5, repeat: Infinity, ease: EASE_SOFT },
             }
       }
     >
-      <div
-        className={`relative z-10 flex h-full w-full flex-col text-center ${s.pad} ${
-          align === "start" ? "items-start justify-start" : "items-center justify-center"
-        }`}
-      >
-        {logo ?? (
-          <span
-            className="font-display block leading-none text-white"
-            style={{
-              fontSize: s.title,
-              textShadow: "0.06em 0.06em 0 #D61A21",
-              letterSpacing: "0.02em",
-            }}
-          >
-            TAVA
-          </span>
-        )}
-        <div className={`-skew-x-6 border-[#FFC600] bg-[#D61A21] ${s.gap} ${s.border}`}>
-          <span
-            className="font-display block uppercase leading-tight text-white"
-            style={{ fontSize: s.ribbon, letterSpacing: "0.12em" }}
-          >
-            En el acto
-          </span>
-        </div>
-        <div className={`relative ${s.gap}`}>
-          <span className="font-hand block text-[#FFC600]" style={{ fontSize: s.tag }}>
-            #TAVA
-          </span>
-          <svg
-            aria-hidden
-            viewBox="0 0 200 14"
-            className={`absolute left-0 w-full ${size === "corner" ? "-bottom-1 h-2" : "-bottom-2 h-3"}`}
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M2 9 C 40 2, 80 14, 120 6 S 178 4, 198 8"
-              fill="none"
-              stroke="#FFFFFF"
-              strokeWidth={size === "corner" ? 3 : 4}
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
-      </div>
+      <BrandMark size={size} align={align} logo={logo} />
     </motion.div>
   );
 }
 
-/** Transición de escena: letras TAVA lentas, sin telón opaco. */
+/** Transición a votación: letras TAVA, sin fondo opaco. */
 export function BrandIntroTransition({
   playKey,
   playing = true,
@@ -405,14 +289,9 @@ export function BrandIntroTransition({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.45, ease: "easeOut" }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
         >
-          <BrandIntroStage
-            cycleKey={playKey}
-            lettersOnly
-            pace="fast"
-            reduceMotion={reduce}
-          />
+          <BrandIntroStage playKey={playKey} reduce={reduce} />
         </motion.div>
       )}
     </AnimatePresence>

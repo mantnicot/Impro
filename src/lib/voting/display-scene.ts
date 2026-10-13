@@ -41,6 +41,17 @@ export const DISPLAY_SCENE_LABELS: Record<DisplayScene, string> = {
 
 export type GameModeHint = "voting" | "objects" | "general";
 
+type SceneSession = {
+  display_scene?: string | null;
+  is_open?: boolean;
+  show_results?: boolean;
+  object_collection_open?: boolean;
+  selected_objects?: string[] | null;
+  roulette_spun_at?: string | null;
+  daily_games?: DailyGame[] | null;
+  active_game_index?: number | null;
+};
+
 export function isDisplayScene(value: unknown): value is DisplayScene {
   return typeof value === "string" && (DISPLAY_SCENES as readonly string[]).includes(value);
 }
@@ -73,22 +84,12 @@ export function getActiveDailyGame(session: {
  * - auto: lee el juego activo (votacion / objetos-premisas-piropos / general)
  * - manual: respeta el boton del admin
  */
-export function resolveEffectiveDisplayScene(session: {
-  display_scene?: string | null;
-  is_open?: boolean;
-  show_results?: boolean;
-  object_collection_open?: boolean;
-  selected_objects?: string[] | null;
-  roulette_spun_at?: string | null;
-  daily_games?: DailyGame[] | null;
-  active_game_index?: number | null;
-}): DisplayScene {
+export function resolveEffectiveDisplayScene(session: SceneSession): DisplayScene {
   const configured = resolveDisplayScene(session.display_scene);
 
   if (configured === "lobby") return "lobby";
   if (configured !== "auto") return configured;
 
-  // Auto: el juego activo manda (no se queda pegado en un objeto viejo).
   const hint = detectGameModeHint(getActiveDailyGame(session));
 
   if (hint === "voting") {
@@ -97,7 +98,6 @@ export function resolveEffectiveDisplayScene(session: {
 
   if (hint === "objects") {
     if (session.object_collection_open) return "collecting";
-    // Tras el sorteo: pantalla Ruleta (premisa), no el podio de jugadores
     if (session.roulette_spun_at && (session.selected_objects?.length ?? 0) > 0) return "roulette";
     return "collecting";
   }
@@ -107,17 +107,8 @@ export function resolveEffectiveDisplayScene(session: {
   return "general";
 }
 
-/** Proyector y celulares: misma vista de podio Panini (botón Ganador o ranking publicado legacy). */
-export function participantsSeeWinnerPodium(session: {
-  display_scene?: string | null;
-  is_open?: boolean;
-  show_results?: boolean;
-  object_collection_open?: boolean;
-  selected_objects?: string[] | null;
-  roulette_spun_at?: string | null;
-  daily_games?: DailyGame[] | null;
-  active_game_index?: number | null;
-}): boolean {
+/** Proyector y celulares: misma vista de podio Panini. */
+export function participantsSeeWinnerPodium(session: SceneSession): boolean {
   const configured = resolveDisplayScene(session.display_scene);
   if (configured === "winner" || configured === "results") return true;
   const effective = resolveEffectiveDisplayScene(session);
@@ -125,13 +116,7 @@ export function participantsSeeWinnerPodium(session: {
 }
 
 /** Solo permite overlay de ruleta en modo objetos/ruleta; Ganador/Lobby/etc. la cierran. */
-export function shouldShowStageRoulette(session: {
-  display_scene?: string | null;
-  daily_games?: DailyGame[] | null;
-  active_game_index?: number | null;
-  roulette_spun_at?: string | null;
-  selected_objects?: string[] | null;
-}): boolean {
+export function shouldShowStageRoulette(session: SceneSession): boolean {
   const configured = resolveDisplayScene(session.display_scene);
   if (
     configured === "winner" ||
@@ -150,6 +135,5 @@ export function shouldShowStageRoulette(session: {
   const effective = resolveEffectiveDisplayScene(session);
   if (effective === "roulette") return true;
 
-  // Auto + juego de objetos/premisas/piropos: el sorteo puede cubrir la TV
   return configured === "auto" && detectGameModeHint(getActiveDailyGame(session)) === "objects";
 }
