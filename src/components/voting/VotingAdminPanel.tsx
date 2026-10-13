@@ -506,7 +506,7 @@ export function VotingAdminPanel() {
   const possibleVotes = summary.currentRoundParticipantCount * Math.max(artists.length, 1);
   const statusCopy = useMemo(() => {
     if (!session) return "Sin sesion";
-    if (session.show_results) return "Ranking publicado";
+    if (session.display_scene === "winner") return "Podio en pantalla (Ganador)";
     if (session.object_collection_open) return "Recibiendo objetos";
     if (session.is_open) return "Votacion abierta";
     return "Votacion cerrada";
@@ -585,7 +585,12 @@ export function VotingAdminPanel() {
               session={session}
               busy={!!busyAction}
               onSetScene={(scene: DisplayScene) => {
-                void patchSession({ display_scene: scene }, `display-${scene}`);
+                void patchSession(
+                  scene === "winner"
+                    ? { display_scene: scene, is_open: false }
+                    : { display_scene: scene },
+                  `display-${scene}`
+                );
               }}
             />
 
@@ -641,15 +646,11 @@ export function VotingAdminPanel() {
                 >
                   Nueva ronda ({round + 1})
                 </button>
-                <button
-                  type="button"
-                  disabled={!!busyAction}
-                  onClick={() => void patchSession({ show_results: true, is_open: false }, "publish")}
-                  className="min-h-12 rounded-xl border-2 border-amber-400 bg-amber-50 text-sm font-bold text-amber-800 disabled:opacity-50"
-                >
-                  Publicar podio y ranking
-                </button>
               </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Para mostrar el podio en TV y celulares, usa el botón <strong>Ganador</strong> en Pantalla
+                del show.
+              </p>
             </section>
 
             <section className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm">
@@ -712,7 +713,7 @@ export function VotingAdminPanel() {
               <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <h2 className="font-display text-lg font-bold text-gray-800">Ranking acumulado</h2>
                 <div className="mt-2">
-                  <VotingResults results={liveResults} reveal podium={session.show_results} />
+                  <VotingResults results={liveResults} reveal={false} />
                 </div>
               </section>
             )}

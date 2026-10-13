@@ -92,7 +92,7 @@ export function resolveEffectiveDisplayScene(session: {
   const hint = detectGameModeHint(getActiveDailyGame(session));
 
   if (hint === "voting") {
-    return session.show_results ? "results" : "voting";
+    return session.show_results ? "winner" : "voting";
   }
 
   if (hint === "objects") {
@@ -103,8 +103,25 @@ export function resolveEffectiveDisplayScene(session: {
   }
 
   if (session.is_open) return "voting";
-  if (session.show_results) return "results";
+  if (session.show_results) return "winner";
   return "general";
+}
+
+/** Proyector y celulares: misma vista de podio Panini (botón Ganador o ranking publicado legacy). */
+export function participantsSeeWinnerPodium(session: {
+  display_scene?: string | null;
+  is_open?: boolean;
+  show_results?: boolean;
+  object_collection_open?: boolean;
+  selected_objects?: string[] | null;
+  roulette_spun_at?: string | null;
+  daily_games?: DailyGame[] | null;
+  active_game_index?: number | null;
+}): boolean {
+  const configured = resolveDisplayScene(session.display_scene);
+  if (configured === "winner" || configured === "results") return true;
+  const effective = resolveEffectiveDisplayScene(session);
+  return effective === "winner" || effective === "results";
 }
 
 /** Solo permite overlay de ruleta en modo objetos/ruleta; Ganador/Lobby/etc. la cierran. */

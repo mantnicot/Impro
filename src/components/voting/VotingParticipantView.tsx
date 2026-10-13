@@ -3,7 +3,11 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { clearSession, getSessionCode, getSessionId, getVoterId } from "@/lib/role-storage";
-import { detectGameModeHint, getActiveDailyGame } from "@/lib/voting/display-scene";
+import {
+  detectGameModeHint,
+  getActiveDailyGame,
+  participantsSeeWinnerPodium,
+} from "@/lib/voting/display-scene";
 import { formatSubmissionDisplay } from "@/lib/voting/submission-display";
 import {
   currentDrawnObject,
@@ -16,7 +20,7 @@ import { contrastOnColor } from "@/lib/voting/artist-style";
 import { DailyGamesFab } from "./DailyGamesFab";
 import { LiveScoreboard } from "./LiveScoreboard";
 import { ShowWelcomeMessage } from "./ShowWelcomeMessage";
-import { VotingResults } from "./VotingResults";
+import { WinnerPodiumReveal } from "./WinnerPodiumReveal";
 import { WordRoulette } from "./WordRoulette";
 
 interface MyVote {
@@ -32,7 +36,7 @@ function isObjectsGameLive(session: VotingSession): boolean {
   if (session.object_collection_open) return true;
   const hint = detectGameModeHint(getActiveDailyGame(session));
   if (hint !== "objects") return false;
-  return !session.is_open && !session.show_results;
+  return !session.is_open && !participantsSeeWinnerPodium(session);
 }
 
 function ParticipantLayout({
@@ -516,20 +520,21 @@ export function VotingParticipantView() {
     );
   }
 
-  if (session?.show_results && results.length > 0) {
+  if (session && participantsSeeWinnerPodium(session)) {
     return (
-      <ParticipantLayout
-        session={session}
-        results={results}
-        focusMode
-        rouletteOpen={rouletteOpen}
-        rouletteItems={rouletteItems}
-        rouletteWinner={rouletteWinner}
-        onRouletteComplete={handleRouletteComplete}
-      >
-        <VotingResults results={results} reveal podium />
-        <ExitButton />
-      </ParticipantLayout>
+      <div className="relative h-[100dvh] w-full overflow-hidden bg-[#050D26]">
+        {results.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-white">
+            <p className="font-hand text-2xl text-tava-yellow">Ganador</p>
+            <p className="font-display text-xl tracking-wide text-white/80">Cargando ranking…</p>
+          </div>
+        ) : (
+          <WinnerPodiumReveal results={results} title={session.title} className="absolute inset-0" />
+        )}
+        <div className="absolute bottom-4 left-0 right-0 z-[100] flex justify-center px-4 pb-[env(safe-area-inset-bottom)]">
+          <ExitButton className="mt-0 w-auto rounded-xl border border-white/30 bg-black/40 px-4 py-2 text-sm font-bold text-white no-underline backdrop-blur-sm" />
+        </div>
+      </div>
     );
   }
 
@@ -733,7 +738,7 @@ function StatusMessage({ text }: { text: string }) {
   );
 }
 
-function ExitButton() {
+function ExitButton({ className = "" }: { className?: string }) {
   return (
     <button
       type="button"
@@ -741,7 +746,7 @@ function ExitButton() {
         clearSession();
         window.location.reload();
       }}
-      className="mt-6 block w-full text-center text-xs text-gray-400 underline"
+      className={`mt-6 block w-full text-center text-xs text-gray-400 underline ${className}`}
     >
       Salir de la sesion
     </button>
