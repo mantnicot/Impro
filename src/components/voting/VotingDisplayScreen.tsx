@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { BrandIntroLoop, BrandIntroTransition } from "@/components/BrandIntro";
-import ClosedCurtain from "@/components/ClosedCurtain";
 import ShowAtmosphere from "@/components/ShowAtmosphere";
 import { ShowBrandTitle } from "@/components/ShowBrandTitle";
 import {
@@ -294,12 +293,17 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
     );
   }
 
+  const atmosphereScene =
+    visibleScene === "lobby"
+      ? "lobby"
+      : visibleScene === "general" || visibleScene === "games"
+        ? "general"
+        : null;
+
   return (
     <div className="relative isolate h-[100dvh] overflow-hidden bg-tava-blue text-white">
-      {visibleScene === "lobby" ? (
-        <ClosedCurtain />
-      ) : visibleScene === "general" || visibleScene === "games" ? (
-        <ShowAtmosphere variant="general" />
+      {atmosphereScene ? (
+        <ShowAtmosphere variant={atmosphereScene} />
       ) : (
         <>
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,198,0,0.18),transparent_40%),radial-gradient(circle_at_80%_10%,rgba(214,26,33,0.22),transparent_35%),radial-gradient(circle_at_50%_90%,rgba(255,255,255,0.08),transparent_45%)]" />
@@ -564,70 +568,41 @@ function SceneContent({
           </div>
         </section>
 
-        <section className="flex min-h-0 flex-col gap-3">
+        <section className="flex min-h-0 flex-col gap-4">
           {rules && (
-            <div className="rounded-3xl border-4 border-tava-yellow bg-white px-5 py-4 text-tava-blue shadow-[8px_8px_0_rgba(11,18,32,0.3)]">
+            <div className="rounded-3xl border-4 border-tava-yellow bg-white px-5 py-5 text-tava-blue shadow-[8px_8px_0_rgba(11,18,32,0.3)]">
               <p className="font-hand text-2xl text-tava-red">Info del show</p>
-              <p className="mt-2 max-h-[18vh] overflow-y-auto whitespace-pre-wrap font-display text-lg leading-snug sm:text-xl">
+              <p className="mt-2 max-h-[28vh] overflow-y-auto whitespace-pre-wrap font-display text-xl leading-snug sm:text-2xl">
                 {rules}
               </p>
             </div>
           )}
 
-          <div className="min-h-0 flex-1 rounded-3xl border border-white/20 bg-white/10 px-4 py-3">
+          <div className="min-h-0 flex-1 rounded-3xl border border-white/20 bg-white/10 px-4 py-4">
             <p className="text-center font-hand text-2xl text-tava-yellow">Ranking</p>
             {topResults.length === 0 ? (
-              <p className="mt-4 text-center text-white/50">Sin votos aun</p>
+              <p className="mt-6 text-center text-white/50">Sin votos aun</p>
             ) : (
-              <RankingList version={rankingVersion} className="mt-2 space-y-1.5">
+              <RankingList version={rankingVersion} className="mt-3 space-y-2">
                 {topResults.map((r, index) => (
                   <RankingItem
                     key={r.artist.id}
                     index={index}
-                    className={`flex items-center gap-3 rounded-2xl px-3 py-2 ${
+                    className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${
                       index === 0
                         ? "bg-tava-yellow text-tava-blue"
                         : "bg-white/10 text-white"
                     }`}
                   >
-                    <span className="w-8 font-display text-xl sm:text-2xl">{index + 1}</span>
-                    <span className="min-w-0 flex-1 truncate font-display text-lg sm:text-xl">
+                    <span className="w-8 font-display text-2xl">{index + 1}</span>
+                    <span className="min-w-0 flex-1 truncate font-display text-xl sm:text-2xl">
                       {r.artist.name}
                     </span>
-                    <span className="font-display text-xl sm:text-2xl">{r.totalPoints}</span>
+                    <span className="font-display text-2xl">{r.totalPoints}</span>
                   </RankingItem>
                 ))}
               </RankingList>
             )}
-          </div>
-
-          {/* QR para quienes llegan tarde */}
-          <div className="flex items-center gap-3 rounded-3xl border-4 border-tava-yellow bg-white p-3 text-tava-blue shadow-[6px_6px_0_rgba(11,18,32,0.3)]">
-            <PulseFrame radiusClass="rounded-2xl" className="shrink-0">
-              <div className="rounded-2xl border-2 border-tava-yellow bg-white p-1.5">
-                {qrSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={qrSrc}
-                    alt={`QR ${session.code}`}
-                    className="h-24 w-24 sm:h-28 sm:w-28"
-                  />
-                ) : (
-                  <div className="flex h-24 w-24 items-center justify-center text-xs font-bold text-tava-blue sm:h-28 sm:w-28">
-                    QR…
-                  </div>
-                )}
-              </div>
-            </PulseFrame>
-            <div className="min-w-0 flex-1">
-              <p className="font-hand text-xl text-tava-red sm:text-2xl">Llegas tarde?</p>
-              <p className="font-display text-sm tracking-wide text-tava-blue/80 sm:text-base">
-                Escanea o escribe el codigo
-              </p>
-              <GlowText className="mt-1 font-display text-3xl tracking-[0.18em] text-tava-blue sm:text-4xl">
-                {session.code}
-              </GlowText>
-            </div>
           </div>
         </section>
       </div>

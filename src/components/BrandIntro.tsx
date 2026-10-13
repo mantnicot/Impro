@@ -17,10 +17,8 @@ import {
 } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
-/** Coreografía lenta (lobby loop / ingreso / transición a votación). */
-export const BRAND_INTRO_MS = 7200;
-export const BRAND_INTRO_MID_MS = 3400;
-export const BRAND_INTRO_LOOP_GAP_MS = 1800;
+export const BRAND_INTRO_MS = 2300;
+export const BRAND_INTRO_MID_MS = 1100;
 
 const BURST = Array.from({ length: 16 }, (_, i) => {
   const angle = (i / 16) * Math.PI * 2;
@@ -78,9 +76,9 @@ export function BrandIntroStage({
               WebkitMaskImage: "radial-gradient(circle, #000 0%, transparent 55%)",
               maskImage: "radial-gradient(circle, #000 0%, transparent 55%)",
             }}
-            initial={{ opacity: 0, scale: 0.6, rotate: -8 }}
-            animate={{ opacity: [0.35, 0.85, 0.55], scale: [0.85, 1.05, 1], rotate: [-8, 6, 2] }}
-            transition={{ duration: 6.5, ease: "easeInOut", times: [0, 0.55, 1] }}
+            initial={{ opacity: 0, scale: 0.6, rotate: -12 }}
+            animate={{ opacity: 1, scale: 1, rotate: 14 }}
+            transition={{ duration: 2.2, ease: "easeOut" }}
           />
 
           {BURST.map((d) => (
@@ -97,12 +95,12 @@ export function BrandIntroStage({
               }}
               initial={{ opacity: 0, x: 0, y: 0, scale: 0.2 }}
               animate={{
-                opacity: [0, 0.75, 0],
+                opacity: [0, 0.9, 0],
                 x: `${compact ? d.x * 0.55 : d.x}vmin`,
                 y: `${compact ? d.y * 0.55 : d.y}vmin`,
                 scale: 1,
               }}
-              transition={{ duration: 3.2, delay: 1.2 + (d.id % 4) * 0.15, ease: "easeOut", times: [0, 0.35, 1] }}
+              transition={{ duration: 1.1, delay: 0.5, ease: "easeOut", times: [0, 0.3, 1] }}
             />
           ))}
         </>
@@ -110,9 +108,9 @@ export function BrandIntroStage({
 
       <div className="relative z-10 flex flex-col items-center px-4 text-center sm:px-6">
         <motion.div
-          initial={reduce ? false : { opacity: 0, scale: 0.45, rotate: -6 }}
-          animate={{ opacity: 1, scale: 1, rotate: -2 }}
-          transition={{ duration: 1.8, ease: [0.22, 1, 0.36, 1], delay: reduce ? 0 : 0.4 }}
+          initial={reduce ? false : { opacity: 0, scale: 0.35, rotate: -9 }}
+          animate={{ opacity: 1, scale: 1, rotate: -3 }}
+          transition={{ type: "spring", stiffness: 280, damping: 15, delay: reduce ? 0 : 0.15 }}
         >
           {logo ?? (
             <span
@@ -132,9 +130,9 @@ export function BrandIntroStage({
           className={`mt-3 -skew-x-6 border-4 border-[#FFC600] bg-[#D61A21] shadow-[8px_8px_0_#0B1220] ${
             compact ? "px-4 py-0.5" : "mt-4 px-6 py-1"
           }`}
-          initial={reduce ? false : { opacity: 0, y: 48 }}
+          initial={reduce ? false : { opacity: 0, y: 70 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1], delay: reduce ? 0 : 1.6 }}
+          transition={{ type: "spring", stiffness: 320, damping: 22, delay: reduce ? 0 : 0.6 }}
         >
           <span
             className="font-display block uppercase leading-tight text-white"
@@ -146,9 +144,9 @@ export function BrandIntroStage({
 
         <motion.div
           className={`relative ${compact ? "mt-3" : "mt-5"}`}
-          initial={reduce ? false : { opacity: 0, rotate: -6, y: 12 }}
-          animate={{ opacity: 1, rotate: -3, y: 0 }}
-          transition={{ duration: 1.2, ease: "easeOut", delay: reduce ? 0 : 2.6 }}
+          initial={reduce ? false : { opacity: 0, rotate: -9, y: 16 }}
+          animate={{ opacity: 1, rotate: -4, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut", delay: reduce ? 0 : 0.9 }}
         >
           <span className="font-hand block text-[#FFC600]" style={{ fontSize: tagSize }}>
             #TAVA
@@ -167,7 +165,7 @@ export function BrandIntroStage({
               strokeLinecap="round"
               initial={reduce ? false : { pathLength: 0 }}
               animate={{ pathLength: 1 }}
-              transition={{ duration: 1.6, ease: "easeOut", delay: reduce ? 0 : 3.1 }}
+              transition={{ duration: 0.45, ease: "easeOut", delay: reduce ? 0 : 1.1 }}
             />
           </svg>
         </motion.div>
@@ -178,8 +176,8 @@ export function BrandIntroStage({
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[#FFC600]"
           initial={{ opacity: 0 }}
-          animate={{ opacity: [0, 0.45, 0] }}
-          transition={{ duration: 1.1, delay: 1.1, times: [0, 0.35, 1] }}
+          animate={{ opacity: [0, 0.9, 0] }}
+          transition={{ duration: 0.35, delay: 0.45, times: [0, 0.3, 1] }}
         />
       )}
     </div>
@@ -261,10 +259,7 @@ export function BrandIntroLoop({
 
   useEffect(() => {
     if (reduce) return;
-    const t = window.setInterval(
-      () => setCycle((c) => c + 1),
-      BRAND_INTRO_MS + BRAND_INTRO_LOOP_GAP_MS
-    );
+    const t = window.setInterval(() => setCycle((c) => c + 1), BRAND_INTRO_MS + 400);
     return () => window.clearInterval(t);
   }, [reduce]);
 

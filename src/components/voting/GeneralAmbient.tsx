@@ -86,8 +86,8 @@ export function LiveGameCard({
   return (
     <motion.div
       className={`relative ${className}`}
-      animate={reduce ? undefined : { y: [0, -4] }}
-      transition={mirror(12)}
+      animate={reduce ? undefined : { y: [0, -6] }}
+      transition={mirror(6)}
     >
       {/* sombra offset estilo comic */}
       <span
@@ -100,8 +100,8 @@ export function LiveGameCard({
         aria-hidden
         className={`pointer-events-none absolute -inset-1 z-20 border-4 border-[#FFC600] ${radiusClass}`}
         style={{ opacity: reduce ? 0.8 : undefined }}
-        animate={reduce ? undefined : { opacity: [1, 0.35], scale: [1, 1.01] }}
-        transition={mirror(6)}
+        animate={reduce ? undefined : { opacity: [1, 0.3], scale: [1, 1.012] }}
+        transition={mirror(2.4)}
       />
     </motion.div>
   );
