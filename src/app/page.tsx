@@ -10,7 +10,6 @@ import { ListManager } from "@/components/ListManager";
 import { FavoritesPanel } from "@/components/FavoritesPanel";
 import { SettingsPanel, StatsPanel } from "@/components/SettingsPanel";
 import { MainModuleNav, type AppModule } from "@/components/MainModuleNav";
-import { ImproColombiaModule } from "@/components/ImproColombiaModule";
 import { PremisesModule } from "@/components/PremisesModule";
 import { ControlDock } from "@/components/ControlDock";
 import { JoinScreen } from "@/components/JoinScreen";
@@ -46,10 +45,6 @@ const MODULE_COPY: Record<AppModule, { title: string; subtitle: string }> = {
   words: {
     title: "Palabras aleatorias",
     subtitle: "#TAVA en el acto · Ruleta de objetos",
-  },
-  scenes: {
-    title: "Crear escenas",
-    subtitle: "Lugares, personajes y características",
   },
   premises: {
     title: "Premisas chistosas",
@@ -304,7 +299,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {module === "scenes" && <ImproColombiaModule />}
         {module === "premises" && <PremisesModule />}
         {module === "voting" && <VotingAdminPanel />}
       </main>

@@ -19,7 +19,6 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 /** Overlay / bucle de marca */
 export const BRAND_INTRO_MS = 3200;
-export const BRAND_INTRO_LOOP_GAP_MS = 1000;
 /** Transición a votación: más corta */
 export const BRAND_TRANSITION_MS = 2000;
 export const BRAND_TRANSITION_MID_MS = 900;
@@ -260,7 +259,7 @@ export default function BrandIntro({ logo, onDone }: OverlayProps) {
   );
 }
 
-/** Bucle continuo: solo letras, sin caja ni fondo propio. */
+/** Bucle continuo: solo letras. Sin remount (más fluido). */
 export function BrandIntroLoop({
   className = "",
   size = "stage",
@@ -273,30 +272,81 @@ export function BrandIntroLoop({
   logo?: ReactNode;
 }) {
   const reduce = useReducedMotion();
-  const [cycle, setCycle] = useState(0);
-  // Esquina / hero: ciclo un poco más largo para no saturar
-  const period =
-    size === "corner"
-      ? BRAND_INTRO_MS + BRAND_INTRO_LOOP_GAP_MS + 2000
-      : BRAND_INTRO_MS + BRAND_INTRO_LOOP_GAP_MS;
-
-  useEffect(() => {
-    if (reduce) return;
-    const t = window.setInterval(() => setCycle((c) => c + 1), period);
-    return () => window.clearInterval(t);
-  }, [reduce, period]);
+  const s = SIZE_STYLES[size];
 
   return (
-    <div className={`relative isolate overflow-visible ${className}`} aria-hidden>
-      <BrandIntroStage
-        cycleKey={cycle}
-        size={size}
-        lettersOnly
-        align={align}
-        logo={logo}
-        reduceMotion={reduce}
-      />
-    </div>
+    <motion.div
+      className={`relative isolate overflow-visible will-change-transform ${className}`}
+      style={{ transform: "translateZ(0)" }}
+      aria-hidden
+      initial={reduce ? false : { opacity: 0, y: 10, scale: 0.94 }}
+      animate={
+        reduce
+          ? { opacity: 1, y: 0, scale: 1 }
+          : {
+              opacity: 1,
+              y: [0, -5, 0],
+              scale: [1, 1.025, 1],
+              rotate: [-1.2, 0.8, -1.2],
+            }
+      }
+      transition={
+        reduce
+          ? { duration: 0.25 }
+          : {
+              opacity: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+              y: { duration: 5.5, repeat: Infinity, ease: [0.45, 0.05, 0.55, 0.95] },
+              scale: { duration: 5.5, repeat: Infinity, ease: [0.45, 0.05, 0.55, 0.95] },
+              rotate: { duration: 7.5, repeat: Infinity, ease: [0.45, 0.05, 0.55, 0.95] },
+            }
+      }
+    >
+      <div
+        className={`relative z-10 flex h-full w-full flex-col text-center ${s.pad} ${
+          align === "start" ? "items-start justify-start" : "items-center justify-center"
+        }`}
+      >
+        {logo ?? (
+          <span
+            className="font-display block leading-none text-white"
+            style={{
+              fontSize: s.title,
+              textShadow: "0.06em 0.06em 0 #D61A21",
+              letterSpacing: "0.02em",
+            }}
+          >
+            TAVA
+          </span>
+        )}
+        <div className={`-skew-x-6 border-[#FFC600] bg-[#D61A21] ${s.gap} ${s.border}`}>
+          <span
+            className="font-display block uppercase leading-tight text-white"
+            style={{ fontSize: s.ribbon, letterSpacing: "0.12em" }}
+          >
+            En el acto
+          </span>
+        </div>
+        <div className={`relative ${s.gap}`}>
+          <span className="font-hand block text-[#FFC600]" style={{ fontSize: s.tag }}>
+            #TAVA
+          </span>
+          <svg
+            aria-hidden
+            viewBox="0 0 200 14"
+            className={`absolute left-0 w-full ${size === "corner" ? "-bottom-1 h-2" : "-bottom-2 h-3"}`}
+            preserveAspectRatio="none"
+          >
+            <path
+              d="M2 9 C 40 2, 80 14, 120 6 S 178 4, 198 8"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth={size === "corner" ? 3 : 4}
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 

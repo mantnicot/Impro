@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 
-export type AppModule = "words" | "scenes" | "premises" | "voting";
+export type AppModule = "words" | "premises" | "voting";
 
 interface MainModuleNavProps {
   active: AppModule;
@@ -11,7 +11,6 @@ interface MainModuleNavProps {
 
 const ITEMS: { id: AppModule; label: string; icon: string }[] = [
   { id: "words", label: "Palabras", icon: "Dado" },
-  { id: "scenes", label: "Escenas", icon: "Teatro" },
   { id: "premises", label: "Premisas", icon: "Idea" },
   { id: "voting", label: "Votacion", icon: "Votos" },
 ];
@@ -22,7 +21,7 @@ export function MainModuleNav({ active, onChange }: MainModuleNavProps) {
       className="fixed bottom-0 left-0 right-0 z-50 border-t-4 border-tava-yellow bg-tava-blue px-1 pt-2 shadow-[0_-6px_20px_rgba(0,0,0,0.25)] pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]"
       aria-label="Modulos principales"
     >
-      <div className="mx-auto grid max-w-md grid-cols-4 gap-0.5">
+      <div className="mx-auto grid max-w-md grid-cols-3 gap-0.5">
         {ITEMS.map((item) => {
           const isActive = active === item.id;
           return (

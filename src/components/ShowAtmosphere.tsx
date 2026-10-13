@@ -1,18 +1,8 @@
 "use client";
 
 /**
- * ShowAtmosphere — fondo "siempre vivo" para las escenas del proyector.
- *
- * Capas (todas con transform/opacity, sin tocar layout):
- *   1. base `bg-theater-gradient` (ya existe en tu tailwind)
- *   2. halftone `bg-halftone-dots` a la deriva lenta
- *   3. dos haces de spotlight que barren despacio
- *   4. puntos que suben (rojo / amarillo / blanco)
- *   5. viñeta
- *
- * Uso: primer hijo de un contenedor `relative isolate overflow-hidden`;
- * el contenido real va en `relative z-10`. No captura clics.
- * Con prefers-reduced-motion: mismas capas, quietas (sin loops).
+ * ShowAtmosphere — fondo vivo del proyector.
+ * Solo transform/opacity, sin blur de filtro (más fluido en TV/móviles).
  */
 
 import { motion, useReducedMotion } from "framer-motion";
@@ -25,9 +15,8 @@ type Props = {
   className?: string;
 };
 
-const DOT_COLORS = ["#FFC600", "#FFFFFF", "#D61A21", "#FFC600"];
+const DOT_COLORS = ["#FFC600", "#FFFFFF", "#D61A21"];
 
-// PRNG determinista: servidor y cliente generan los mismos puntos (sin hydration mismatch)
 function mulberry32(seed: number) {
   let a = seed;
   return () => {
@@ -43,35 +32,33 @@ function makeDots(count: number, seed: number) {
   return Array.from({ length: count }, (_, i) => ({
     id: i,
     left: Number((rnd() * 100).toFixed(2)),
-    size: Math.round(6 + rnd() * 14),
-    color: DOT_COLORS[Math.floor(rnd() * DOT_COLORS.length)],
-    ring: rnd() < 0.3, // algunos son aro, como puntos de impresión comic
-    duration: Number((9 + rnd() * 9).toFixed(2)),
-    delay: Number((rnd() * 8).toFixed(2)),
-    peak: Number((0.45 + rnd() * 0.4).toFixed(2)),
+    size: Math.round(5 + rnd() * 10),
+    color: DOT_COLORS[Math.floor(rnd() * DOT_COLORS.length)]!,
+    ring: rnd() < 0.25,
+    duration: Number((16 + rnd() * 12).toFixed(2)),
+    delay: Number((rnd() * 10).toFixed(2)),
+    peak: Number((0.35 + rnd() * 0.35).toFixed(2)),
   }));
 }
 
-const mirror = (duration: number, delay = 0) => ({
+const smooth = (duration: number, delay = 0) => ({
   duration,
   delay,
   repeat: Infinity,
   repeatType: "mirror" as const,
-  ease: "easeInOut" as const,
+  ease: [0.45, 0.05, 0.55, 0.95] as const,
 });
 
 export default function ShowAtmosphere({ variant = "lobby", className = "" }: Props) {
   const reduce = useReducedMotion();
   const lobby = variant === "lobby";
-  const dots = useMemo(() => makeDots(lobby ? 20 : 10, lobby ? 7 : 11), [lobby]);
+  const dots = useMemo(() => makeDots(lobby ? 8 : 5, lobby ? 7 : 11), [lobby]);
 
-  // Haz simétrico: no hace falta espejarlo, solo barrer en sentido contrario
-  const beam = {
-    clipPath: "polygon(47% 0, 53% 0, 100% 100%, 0 100%)",
+  const beamStyle = {
+    clipPath: "polygon(48% 0, 52% 0, 100% 100%, 0 100%)",
     background:
-      "linear-gradient(to bottom, rgba(255,236,160,.32), rgba(255,236,160,.07) 62%, transparent)",
-    filter: "blur(5px)",
-    opacity: lobby ? 1 : 0.6,
+      "linear-gradient(to bottom, rgba(255,236,160,.28), rgba(255,236,160,.06) 55%, transparent)",
+    opacity: lobby ? 0.9 : 0.55,
   };
 
   return (
@@ -79,67 +66,60 @@ export default function ShowAtmosphere({ variant = "lobby", className = "" }: Pr
       aria-hidden
       className={`pointer-events-none absolute inset-0 overflow-hidden bg-theater-gradient ${className}`}
     >
-      {/* Halftone a la deriva (ida y vuelta, sin costura) */}
       <motion.div
-        className="bg-halftone-dots absolute -inset-[8%] will-change-transform"
-        style={{ opacity: lobby ? 0.55 : 0.4 }}
-        animate={reduce ? undefined : { x: [0, 28], y: [0, -28] }}
-        transition={mirror(14)}
+        className="bg-halftone-dots absolute -inset-[6%] will-change-transform"
+        style={{ opacity: lobby ? 0.45 : 0.32, transform: "translateZ(0)" }}
+        animate={reduce ? undefined : { x: [0, 18], y: [0, -16] }}
+        transition={smooth(28)}
       />
 
-      {/* Spotlight: dos haces que barren despacio */}
       <motion.div
-        className="absolute left-[8%] top-[-10%] h-[125%] w-[36%] origin-top will-change-transform"
-        style={beam}
-        initial={{ rotate: -10 }}
-        animate={reduce ? undefined : { rotate: [-14, 10] }}
-        transition={mirror(9)}
+        className="absolute left-[10%] top-[-8%] h-[120%] w-[34%] origin-top will-change-transform"
+        style={{ ...beamStyle, transform: "translateZ(0)" }}
+        animate={reduce ? undefined : { rotate: [-11, 7] }}
+        transition={smooth(24)}
       />
       <motion.div
-        className="absolute right-[8%] top-[-10%] h-[125%] w-[36%] origin-top will-change-transform"
-        style={beam}
-        initial={{ rotate: 10 }}
-        animate={reduce ? undefined : { rotate: [14, -10] }}
-        transition={mirror(11, 1.2)}
+        className="absolute right-[10%] top-[-8%] h-[120%] w-[34%] origin-top will-change-transform"
+        style={{ ...beamStyle, transform: "translateZ(0)" }}
+        animate={reduce ? undefined : { rotate: [11, -7] }}
+        transition={smooth(28, 1.5)}
       />
 
-      {/* Puntos que suben */}
       {dots.map((d) => (
         <motion.span
           key={d.id}
           className="absolute rounded-full will-change-transform"
           style={{
             left: `${d.left}%`,
-            top: "100%",
+            bottom: "-2%",
             width: d.size,
             height: d.size,
             background: d.ring ? "transparent" : d.color,
-            border: d.ring ? `3px solid ${d.color}` : undefined,
-            opacity: reduce ? 0.25 : 0,
+            border: d.ring ? `2px solid ${d.color}` : undefined,
+            opacity: reduce ? 0.2 : 0,
+            transform: "translateZ(0)",
           }}
           animate={
             reduce
               ? undefined
-              : { y: [0, "-105vh"], opacity: [0, d.peak, d.peak, 0] }
+              : { y: [0, "-110vh"], opacity: [0, d.peak, d.peak, 0] }
           }
           transition={{
             duration: d.duration,
             delay: d.delay,
             repeat: Infinity,
             ease: "linear",
-            times: [0, 0.15, 0.8, 1],
+            times: [0, 0.12, 0.82, 1],
           }}
         />
       ))}
 
-      {/* Viñeta suave (poco opaca para no tapar el fondo) */}
-      <motion.div
+      <div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(ellipse at center, transparent ${lobby ? 55 : 50}%, rgba(5,10,25,${lobby ? 0.28 : 0.35}) 100%)`,
+          background: `radial-gradient(ellipse at center, transparent ${lobby ? 58 : 52}%, rgba(5,10,25,${lobby ? 0.22 : 0.3}) 100%)`,
         }}
-        animate={reduce ? undefined : { opacity: [0.75, 1] }}
-        transition={mirror(16)}
       />
     </div>
   );

@@ -19,7 +19,7 @@ const mirror = (duration: number, delay = 0) => ({
   delay,
   repeat: Infinity,
   repeatType: "mirror" as const,
-  ease: "easeInOut" as const,
+  ease: [0.45, 0.05, 0.55, 0.95] as const,
 });
 
 /* ───────────── GameSwap: highlight al cambiar active_game_index ───────────── */
@@ -85,23 +85,22 @@ export function LiveGameCard({
 
   return (
     <motion.div
-      className={`relative ${className}`}
-      animate={reduce ? undefined : { y: [0, -6] }}
-      transition={mirror(6)}
+      className={`relative will-change-transform ${className}`}
+      style={{ transform: "translateZ(0)" }}
+      animate={reduce ? undefined : { y: [0, -4] }}
+      transition={mirror(8)}
     >
-      {/* sombra offset estilo comic */}
       <span
         aria-hidden
         className={`pointer-events-none absolute inset-0 translate-x-2.5 translate-y-2.5 bg-[#0B1220] ${radiusClass}`}
       />
       <div className="relative z-10">{children}</div>
-      {/* borde que pulsa (solo opacidad + escala) */}
       <motion.span
         aria-hidden
-        className={`pointer-events-none absolute -inset-1 z-20 border-4 border-[#FFC600] ${radiusClass}`}
-        style={{ opacity: reduce ? 0.8 : undefined }}
-        animate={reduce ? undefined : { opacity: [1, 0.3], scale: [1, 1.012] }}
-        transition={mirror(2.4)}
+        className={`pointer-events-none absolute -inset-1 z-20 border-4 border-[#FFC600] will-change-transform ${radiusClass}`}
+        style={{ opacity: reduce ? 0.8 : undefined, transform: "translateZ(0)" }}
+        animate={reduce ? undefined : { opacity: [0.95, 0.4], scale: [1, 1.008] }}
+        transition={mirror(7)}
       />
     </motion.div>
   );
