@@ -97,7 +97,8 @@ export function resolveEffectiveDisplayScene(session: {
 
   if (hint === "objects") {
     if (session.object_collection_open) return "collecting";
-    if (session.roulette_spun_at && (session.selected_objects?.length ?? 0) > 0) return "winner";
+    // Tras el sorteo: pantalla Ruleta (premisa), no el podio de jugadores
+    if (session.roulette_spun_at && (session.selected_objects?.length ?? 0) > 0) return "roulette";
     return "collecting";
   }
 

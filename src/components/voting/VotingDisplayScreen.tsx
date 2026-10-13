@@ -309,7 +309,7 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
 
       <ProjectorChrome />
 
-      {visibleScene === "results" ? (
+      {visibleScene === "results" || visibleScene === "winner" ? (
         <div className="relative z-10 h-full w-full">
           {results.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
@@ -317,7 +317,11 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
               <h1 className="font-display text-5xl tracking-wide text-white">SIN VOTOS AUN</h1>
             </div>
           ) : (
-            <WinnerPodiumReveal results={results} title={session?.title || "Ranking de la noche"} />
+            <WinnerPodiumReveal
+              key={`${visibleScene}-${results.map((r) => `${r.artist.id}:${r.totalPoints}`).join("|")}`}
+              results={results}
+              title={session?.title || "Ranking de la noche"}
+            />
           )}
         </div>
       ) : (
@@ -450,28 +454,15 @@ function SceneContent({
     );
   }
 
-  if (scene === "winner") {
-    const label = session.submission_label || "Propuesta";
-    return (
-      <div className="mx-auto w-full max-w-4xl text-center">
-        <p className="font-hand text-3xl text-tava-yellow sm:text-4xl">#TAVA en el acto</p>
-        <h1 className="mt-2 font-display text-6xl tracking-wide text-white sm:text-7xl md:text-8xl">
-          GANADOR
-        </h1>
-        <div className="mt-10 rounded-[2rem] border-4 border-tava-yellow bg-white px-6 py-10 text-tava-blue shadow-[10px_10px_0_rgba(11,18,32,0.35)] sm:px-10 sm:py-12">
-          <p className="font-hand text-2xl text-tava-red sm:text-3xl">{label}</p>
-          <p className="mt-2 font-display text-2xl tracking-wide text-tava-blue/80 sm:text-3xl">
-            PARA ESTA IMPRO
-          </p>
-          <motion.p
-            initial={{ scale: 0.92, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="mx-auto mt-8 max-w-4xl font-display text-4xl leading-tight text-tava-blue sm:text-5xl md:text-6xl lg:text-7xl"
-          >
-            {winner || "Aun no hay sorteo"}
-          </motion.p>
-        </div>
+  // "winner" = mismo podio que publicar ranking (se renderiza a pantalla completa arriba)
+  if (scene === "winner" || scene === "results") {
+    return results.length === 0 ? (
+      <div className="text-center">
+        <p className="font-hand text-3xl text-tava-yellow">Ranking de la noche</p>
+        <h1 className="mt-2 font-display text-5xl tracking-wide text-white">SIN VOTOS AUN</h1>
       </div>
+    ) : (
+      <WinnerPodiumReveal results={results} title={session.title} className="relative h-[70vh] w-full" />
     );
   }
 
@@ -486,17 +477,6 @@ function SceneContent({
           <StatBig label="Votantes" value={summary.currentRoundParticipantCount} />
         </div>
       </div>
-    );
-  }
-
-  if (scene === "results") {
-    return results.length === 0 ? (
-      <div className="text-center">
-        <p className="font-hand text-3xl text-tava-yellow">Ranking de la noche</p>
-        <h1 className="mt-2 font-display text-5xl tracking-wide text-white">SIN VOTOS AUN</h1>
-      </div>
-    ) : (
-      <WinnerPodiumReveal results={results} title={session.title} className="relative h-[70vh] w-full" />
     );
   }
 
