@@ -21,6 +21,7 @@ import {
 } from "@/lib/voting/types";
 import { GameSwap, LiveGameCard, RankingItem, RankingList } from "./GeneralAmbient";
 import { GlowText, HeroText, PulseFrame } from "./LobbyAmbient";
+import { TelonTransition } from "./TelonTransition";
 import { WinnerPodiumReveal } from "./WinnerPodiumReveal";
 import { WordRoulette } from "./WordRoulette";
 
@@ -125,6 +126,7 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
   const [visibleScene, setVisibleScene] = useState<DisplayScene>("lobby");
   const [transitionKey, setTransitionKey] = useState(0);
   const [transitionPlaying, setTransitionPlaying] = useState(false);
+  const [transitionKind, setTransitionKind] = useState<"telon" | "brand">("telon");
 
   const lastSpinRef = useRef<string | null>(null);
   const firstSceneReady = useRef(false);
@@ -155,7 +157,8 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
     if (nextScene === visibleSceneRef.current) return;
     pendingSceneRef.current = nextScene;
     if (transitionPlayingRef.current) return;
-    // Sin telón: siempre la animación lenta de letras TAVA.
+    // Solo votación usa marca TAVA; el resto, telón.
+    setTransitionKind(nextScene === "voting" ? "brand" : "telon");
     setTransitionPlaying(true);
     transitionPlayingRef.current = true;
     setTransitionKey((key) => key + 1);
@@ -303,12 +306,21 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
         onComplete={() => setRouletteOpen(false)}
       />
 
-      <BrandIntroTransition
-        playKey={transitionKey}
-        playing={transitionPlaying}
-        onMidpoint={handleTransitionMidpoint}
-        onComplete={handleTransitionComplete}
-      />
+      {transitionKind === "brand" ? (
+        <BrandIntroTransition
+          playKey={transitionKey}
+          playing={transitionPlaying}
+          onMidpoint={handleTransitionMidpoint}
+          onComplete={handleTransitionComplete}
+        />
+      ) : (
+        <TelonTransition
+          playKey={transitionKey}
+          playing={transitionPlaying}
+          onMidpoint={handleTransitionMidpoint}
+          onComplete={handleTransitionComplete}
+        />
+      )}
 
       <ProjectorChrome />
 
@@ -392,32 +404,52 @@ function SceneContent({
 
   if (scene === "lobby") {
     return (
-      <div className="grid h-full items-center gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8">
-        <BrandIntroLoop className="mx-auto h-[min(52vh,28rem)] w-full max-w-xl lg:mx-0 lg:h-[min(70vh,36rem)]" />
-        <div className="flex flex-col items-center text-center lg:items-end lg:text-right">
+      <div className="mx-auto grid h-full w-full max-w-6xl items-center gap-8 lg:grid-cols-[1fr_auto] lg:gap-12 xl:gap-16">
+        <div className="flex flex-col justify-center text-center lg:text-left">
           <p className="font-hand text-3xl text-tava-yellow sm:text-4xl">Entren al show</p>
           <HeroText>
-            <h1 className="mt-2 font-display text-5xl leading-none tracking-wide text-white sm:text-6xl md:text-7xl">
+            <h1 className="mt-2 font-display text-5xl leading-none tracking-wide text-white sm:text-6xl md:text-7xl xl:text-8xl">
               ESCANEEN EL QR
             </h1>
           </HeroText>
-          <p className="mt-3 max-w-md text-lg text-white/75 sm:text-xl lg:ml-auto">
+          <p className="mt-4 max-w-lg text-lg text-white/75 sm:text-xl lg:mx-0 mx-auto">
             O escriban el codigo en el celular. No hace falta cuenta.
           </p>
-          <GlowText className="mt-5 font-display text-5xl tracking-[0.25em] text-tava-yellow sm:text-6xl">
+          <GlowText className="mt-8 font-display text-6xl tracking-[0.25em] text-tava-yellow sm:text-7xl md:text-8xl">
             {session.code}
           </GlowText>
-          <PulseFrame className="mt-6 justify-self-center" radiusClass="rounded-[2rem]">
-            <div className="rounded-[2rem] border-4 border-tava-yellow bg-white p-4 shadow-[12px_12px_0_rgba(11,18,32,0.35)]">
+
+          <div className="mt-10 flex items-center justify-center gap-4 lg:justify-start">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-tava-yellow bg-gradient-to-br from-[#f58529] via-[#dd2a7b] to-[#515bd4] shadow-[4px_4px_0_rgba(11,18,32,0.35)] sm:h-16 sm:w-16">
+              <InstagramGlyph className="h-8 w-8 text-white sm:h-9 sm:w-9" />
+            </span>
+            <div className="text-left">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/55">Siguenos</p>
+              <p className="font-display text-2xl tracking-wide text-tava-yellow sm:text-3xl">
+                @tavateatro
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center">
+          <PulseFrame radiusClass="rounded-[2rem]">
+            <div className="rounded-[2rem] border-4 border-tava-yellow bg-white p-5 shadow-[12px_12px_0_rgba(11,18,32,0.35)] sm:p-6">
               {qrSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={qrSrc} alt={`QR ${session.code}`} className="h-56 w-56 sm:h-72 sm:w-72" />
+                <img
+                  src={qrSrc}
+                  alt={`QR ${session.code}`}
+                  className="h-64 w-64 sm:h-80 sm:w-80"
+                />
               ) : (
-                <div className="flex h-56 w-56 items-center justify-center text-tava-blue sm:h-72 sm:w-72">
+                <div className="flex h-64 w-64 items-center justify-center text-tava-blue sm:h-80 sm:w-80">
                   Generando QR…
                 </div>
               )}
-              <p className="mt-3 max-w-[18rem] break-all text-center text-xs text-gray-500">{joinUrl}</p>
+              <p className="mt-3 max-w-[20rem] break-all text-center text-xs text-gray-500">
+                {joinUrl}
+              </p>
             </div>
           </PulseFrame>
         </div>
@@ -623,5 +655,15 @@ function StatBig({ label, value }: { label: string; value: number }) {
       <p className="text-sm font-black uppercase tracking-widest text-tava-yellow">{label}</p>
       <p className="mt-2 font-display text-6xl text-white">{value}</p>
     </div>
+  );
+}
+
+function InstagramGlyph({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="2" />
+      <circle cx="12" cy="12" r="4.2" stroke="currentColor" strokeWidth="2" />
+      <circle cx="17.4" cy="6.6" r="1.2" fill="currentColor" />
+    </svg>
   );
 }

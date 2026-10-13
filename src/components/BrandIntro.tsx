@@ -17,10 +17,12 @@ import {
 } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
-/** Transiciones más lentas a propósito */
-export const BRAND_INTRO_MS = 4800;
-export const BRAND_INTRO_MID_MS = 2200;
-export const BRAND_INTRO_LOOP_GAP_MS = 1200;
+/** Overlay / bucle de marca */
+export const BRAND_INTRO_MS = 3200;
+export const BRAND_INTRO_LOOP_GAP_MS = 1000;
+/** Transición a votación: más corta */
+export const BRAND_TRANSITION_MS = 2000;
+export const BRAND_TRANSITION_MID_MS = 900;
 
 export type BrandIntroSize = "corner" | "hero" | "stage" | "full";
 
@@ -69,6 +71,8 @@ type BrandIntroStageProps = {
   compact?: boolean;
   /** Solo tipografía: sin gradiente, rayos ni flash. */
   lettersOnly?: boolean;
+  /** Ritmo más corto (transición a votación). */
+  pace?: "normal" | "fast";
   align?: "center" | "start";
   logo?: ReactNode;
   reduceMotion?: boolean | null;
@@ -80,6 +84,7 @@ export function BrandIntroStage({
   size,
   compact = false,
   lettersOnly = false,
+  pace = "normal",
   align = "center",
   logo,
   reduceMotion,
@@ -88,13 +93,18 @@ export function BrandIntroStage({
   const reduce = reduceMotion ?? reduceHook;
   const resolved: BrandIntroSize = size ?? (compact ? "stage" : "full");
   const s = SIZE_STYLES[resolved];
-  const slow = resolved === "corner" || resolved === "hero";
+  const slow = pace === "normal" && (resolved === "corner" || resolved === "hero");
+  const fast = pace === "fast";
 
   const springSlow = {
     type: "spring" as const,
-    stiffness: slow ? 70 : 90,
-    damping: 18,
+    stiffness: fast ? 200 : slow ? 70 : 90,
+    damping: fast ? 16 : 18,
   };
+  const dTitle = reduce ? 0 : fast ? 0.05 : slow ? 0.35 : 0.25;
+  const dRibbon = reduce ? 0 : fast ? 0.25 : slow ? 1.4 : 1.1;
+  const dTag = reduce ? 0 : fast ? 0.45 : slow ? 2.4 : 2;
+  const dLine = reduce ? 0 : fast ? 0.55 : slow ? 2.9 : 2.4;
 
   return (
     <div
@@ -118,7 +128,7 @@ export function BrandIntroStage({
         <motion.div
           initial={reduce ? false : { opacity: 0, scale: 0.55, rotate: -8 }}
           animate={{ opacity: 1, scale: 1, rotate: -2 }}
-          transition={{ ...springSlow, delay: reduce ? 0 : slow ? 0.35 : 0.25 }}
+          transition={{ ...springSlow, delay: dTitle }}
         >
           {logo ?? (
             <span
@@ -138,7 +148,7 @@ export function BrandIntroStage({
           className={`-skew-x-6 border-[#FFC600] bg-[#D61A21] ${s.gap} ${s.border}`}
           initial={reduce ? false : { opacity: 0, y: slow ? 24 : 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...springSlow, delay: reduce ? 0 : slow ? 1.4 : 1.1 }}
+          transition={{ ...springSlow, delay: dRibbon }}
         >
           <span
             className="font-display block uppercase leading-tight text-white"
@@ -152,7 +162,11 @@ export function BrandIntroStage({
           className={`relative ${s.gap}`}
           initial={reduce ? false : { opacity: 0, rotate: -6, y: 12 }}
           animate={{ opacity: 1, rotate: -3, y: 0 }}
-          transition={{ duration: slow ? 1.35 : 1.1, ease: "easeOut", delay: reduce ? 0 : slow ? 2.4 : 2 }}
+          transition={{
+            duration: fast ? 0.45 : slow ? 1.35 : 1.1,
+            ease: "easeOut",
+            delay: dTag,
+          }}
         >
           <span className="font-hand block text-[#FFC600]" style={{ fontSize: s.tag }}>
             #TAVA
@@ -172,9 +186,9 @@ export function BrandIntroStage({
               initial={reduce ? false : { pathLength: 0 }}
               animate={{ pathLength: 1 }}
               transition={{
-                duration: slow ? 1.5 : 1.2,
+                duration: fast ? 0.5 : slow ? 1.5 : 1.2,
                 ease: "easeOut",
-                delay: reduce ? 0 : slow ? 2.9 : 2.4,
+                delay: dLine,
               }}
             />
           </svg>
@@ -302,8 +316,8 @@ export function BrandIntroTransition({
   const midFired = useRef(false);
   const completeFired = useRef(false);
   const active = playKey > 0 && playing;
-  const duration = reduce ? 900 : BRAND_INTRO_MS;
-  const mid = reduce ? 400 : BRAND_INTRO_MID_MS;
+  const duration = reduce ? 700 : BRAND_TRANSITION_MS;
+  const mid = reduce ? 300 : BRAND_TRANSITION_MID_MS;
 
   useEffect(() => {
     if (!active) return;
@@ -343,7 +357,12 @@ export function BrandIntroTransition({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.45, ease: "easeOut" }}
         >
-          <BrandIntroStage cycleKey={playKey} lettersOnly reduceMotion={reduce} />
+          <BrandIntroStage
+            cycleKey={playKey}
+            lettersOnly
+            pace="fast"
+            reduceMotion={reduce}
+          />
         </motion.div>
       )}
     </AnimatePresence>
