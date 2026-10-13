@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * BrandIntro — marca TAVA en 3 modos:
- * - overlay: fullscreen al ingresar (siempre, saltable)
- * - loop: embutido, se repite (lobby izquierda)
- * - transition: overlay de cambio de escena (votación), API tipo telón
+ * BrandIntro — marca TAVA:
+ * - overlay: fullscreen al ingresar (saltable)
+ * - loop: solo letras, sin caja ni fondo (lobby)
+ * - transition: solo letras sobre el fondo animado (sin telón opaco)
  */
 
 import {
@@ -17,24 +17,16 @@ import {
 } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
-export const BRAND_INTRO_MS = 2300;
-export const BRAND_INTRO_MID_MS = 1100;
-
-const BURST = Array.from({ length: 16 }, (_, i) => {
-  const angle = (i / 16) * Math.PI * 2;
-  const radius = 26 + (i % 3) * 9;
-  return {
-    id: i,
-    x: Math.round(Math.cos(angle) * radius * 10) / 10,
-    y: Math.round(Math.sin(angle) * radius * 10) / 10,
-    size: 10 + (i % 4) * 6,
-    color: i % 3 === 0 ? "#D61A21" : i % 3 === 1 ? "#FFC600" : "#FFFFFF",
-  };
-});
+/** Transiciones más lentas a propósito */
+export const BRAND_INTRO_MS = 4800;
+export const BRAND_INTRO_MID_MS = 2200;
+export const BRAND_INTRO_LOOP_GAP_MS = 1200;
 
 type BrandIntroStageProps = {
   cycleKey: number;
   compact?: boolean;
+  /** Solo tipografía: sin gradiente, rayos ni flash. */
+  lettersOnly?: boolean;
   logo?: ReactNode;
   reduceMotion?: boolean | null;
 };
@@ -43,74 +35,45 @@ type BrandIntroStageProps = {
 export function BrandIntroStage({
   cycleKey,
   compact = false,
+  lettersOnly = false,
   logo,
   reduceMotion,
 }: BrandIntroStageProps) {
   const reduceHook = useReducedMotion();
   const reduce = reduceMotion ?? reduceHook;
   const titleSize = compact
-    ? "clamp(2.5rem, 8vw, 5.5rem)"
+    ? "clamp(2.75rem, 9vw, 6rem)"
     : "clamp(4rem, 17vw, 13rem)";
   const ribbonSize = compact
-    ? "clamp(1rem, 3vw, 1.75rem)"
+    ? "clamp(1.1rem, 3.2vw, 2rem)"
     : "clamp(1.5rem, 5vw, 3.75rem)";
   const tagSize = compact
-    ? "clamp(1.35rem, 3.5vw, 2.5rem)"
+    ? "clamp(1.5rem, 3.8vw, 2.75rem)"
     : "clamp(2rem, 6vw, 4.5rem)";
 
+  const springSlow = {
+    type: "spring" as const,
+    stiffness: 90,
+    damping: 18,
+  };
+
   return (
-    <div key={cycleKey} className="relative flex h-full w-full items-center justify-center overflow-hidden">
-      <div className="bg-theater-gradient absolute inset-0" aria-hidden />
-      <div className="bg-halftone-dots absolute inset-0 opacity-50" aria-hidden />
-
-      {!reduce && (
+    <div
+      key={cycleKey}
+      className="relative flex h-full w-full items-center justify-center overflow-hidden"
+    >
+      {!lettersOnly && (
         <>
-          <motion.div
-            aria-hidden
-            className="absolute left-1/2 top-1/2 h-[190vmax] w-[190vmax] will-change-transform"
-            style={{
-              marginLeft: "-95vmax",
-              marginTop: "-95vmax",
-              background:
-                "repeating-conic-gradient(from 0deg, rgba(255,198,0,.16) 0deg 7deg, transparent 7deg 20deg)",
-              WebkitMaskImage: "radial-gradient(circle, #000 0%, transparent 55%)",
-              maskImage: "radial-gradient(circle, #000 0%, transparent 55%)",
-            }}
-            initial={{ opacity: 0, scale: 0.6, rotate: -12 }}
-            animate={{ opacity: 1, scale: 1, rotate: 14 }}
-            transition={{ duration: 2.2, ease: "easeOut" }}
-          />
-
-          {BURST.map((d) => (
-            <motion.span
-              key={d.id}
-              aria-hidden
-              className="absolute left-1/2 top-1/2 rounded-full will-change-transform"
-              style={{
-                width: compact ? d.size * 0.55 : d.size,
-                height: compact ? d.size * 0.55 : d.size,
-                background: d.color,
-                marginLeft: -(compact ? d.size * 0.55 : d.size) / 2,
-                marginTop: -(compact ? d.size * 0.55 : d.size) / 2,
-              }}
-              initial={{ opacity: 0, x: 0, y: 0, scale: 0.2 }}
-              animate={{
-                opacity: [0, 0.9, 0],
-                x: `${compact ? d.x * 0.55 : d.x}vmin`,
-                y: `${compact ? d.y * 0.55 : d.y}vmin`,
-                scale: 1,
-              }}
-              transition={{ duration: 1.1, delay: 0.5, ease: "easeOut", times: [0, 0.3, 1] }}
-            />
-          ))}
+          <div className="bg-theater-gradient absolute inset-0" aria-hidden />
+          <div className="bg-halftone-dots absolute inset-0 opacity-50" aria-hidden />
         </>
       )}
 
       <div className="relative z-10 flex flex-col items-center px-4 text-center sm:px-6">
         <motion.div
-          initial={reduce ? false : { opacity: 0, scale: 0.35, rotate: -9 }}
-          animate={{ opacity: 1, scale: 1, rotate: -3 }}
-          transition={{ type: "spring", stiffness: 280, damping: 15, delay: reduce ? 0 : 0.15 }}
+          initial={reduce ? false : { opacity: 0, scale: 0.55, rotate: -8 }}
+          animate={{ opacity: 1, scale: 1, rotate: -2 }}
+          transition={{ ...springSlow, delay: reduce ? 0 : 0.25 }}
         >
           {logo ?? (
             <span
@@ -127,12 +90,12 @@ export function BrandIntroStage({
         </motion.div>
 
         <motion.div
-          className={`mt-3 -skew-x-6 border-4 border-[#FFC600] bg-[#D61A21] shadow-[8px_8px_0_#0B1220] ${
-            compact ? "px-4 py-0.5" : "mt-4 px-6 py-1"
+          className={`-skew-x-6 border-4 border-[#FFC600] bg-[#D61A21] shadow-[8px_8px_0_#0B1220] ${
+            compact ? "mt-3 px-4 py-0.5" : "mt-4 px-6 py-1"
           }`}
-          initial={reduce ? false : { opacity: 0, y: 70 }}
+          initial={reduce ? false : { opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 320, damping: 22, delay: reduce ? 0 : 0.6 }}
+          transition={{ ...springSlow, delay: reduce ? 0 : 1.1 }}
         >
           <span
             className="font-display block uppercase leading-tight text-white"
@@ -144,9 +107,9 @@ export function BrandIntroStage({
 
         <motion.div
           className={`relative ${compact ? "mt-3" : "mt-5"}`}
-          initial={reduce ? false : { opacity: 0, rotate: -9, y: 16 }}
-          animate={{ opacity: 1, rotate: -4, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut", delay: reduce ? 0 : 0.9 }}
+          initial={reduce ? false : { opacity: 0, rotate: -6, y: 12 }}
+          animate={{ opacity: 1, rotate: -3, y: 0 }}
+          transition={{ duration: 1.1, ease: "easeOut", delay: reduce ? 0 : 2 }}
         >
           <span className="font-hand block text-[#FFC600]" style={{ fontSize: tagSize }}>
             #TAVA
@@ -165,21 +128,11 @@ export function BrandIntroStage({
               strokeLinecap="round"
               initial={reduce ? false : { pathLength: 0 }}
               animate={{ pathLength: 1 }}
-              transition={{ duration: 0.45, ease: "easeOut", delay: reduce ? 0 : 1.1 }}
+              transition={{ duration: 1.2, ease: "easeOut", delay: reduce ? 0 : 2.4 }}
             />
           </svg>
         </motion.div>
       </div>
-
-      {!reduce && (
-        <motion.div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[#FFC600]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0, 0.9, 0] }}
-          transition={{ duration: 0.35, delay: 0.45, times: [0, 0.3, 1] }}
-        />
-      )}
     </div>
   );
 }
@@ -232,7 +185,7 @@ export default function BrandIntro({ logo, onDone }: OverlayProps) {
       style={{ pointerEvents: leaving ? "none" : "auto" }}
       initial={false}
       animate={leaving ? { opacity: 0, scale: 1.05 } : { opacity: 1, scale: 1 }}
-      transition={{ duration: reduce ? 0.2 : 0.35, ease: "easeOut" }}
+      transition={{ duration: reduce ? 0.2 : 0.45, ease: "easeOut" }}
       onAnimationComplete={() => {
         if (leaving) {
           setDone(true);
@@ -246,7 +199,7 @@ export default function BrandIntro({ logo, onDone }: OverlayProps) {
   );
 }
 
-/** Bucle continuo para el lobby (columna izquierda). */
+/** Bucle continuo: solo letras, sin caja ni fondo propio. */
 export function BrandIntroLoop({
   className = "",
   logo,
@@ -259,21 +212,27 @@ export function BrandIntroLoop({
 
   useEffect(() => {
     if (reduce) return;
-    const t = window.setInterval(() => setCycle((c) => c + 1), BRAND_INTRO_MS + 400);
+    const t = window.setInterval(
+      () => setCycle((c) => c + 1),
+      BRAND_INTRO_MS + BRAND_INTRO_LOOP_GAP_MS
+    );
     return () => window.clearInterval(t);
   }, [reduce]);
 
   return (
-    <div
-      className={`relative isolate overflow-hidden rounded-[2rem] border-4 border-tava-yellow bg-[#0B1220] shadow-[12px_12px_0_rgba(11,18,32,0.35)] ${className}`}
-      aria-hidden
-    >
-      <BrandIntroStage cycleKey={cycle} compact logo={logo} reduceMotion={reduce} />
+    <div className={`relative isolate overflow-visible ${className}`} aria-hidden>
+      <BrandIntroStage
+        cycleKey={cycle}
+        compact
+        lettersOnly
+        logo={logo}
+        reduceMotion={reduce}
+      />
     </div>
   );
 }
 
-/** Transición de escena (votación): misma API que TelonTransition. */
+/** Transición de escena: letras TAVA lentas, sin telón opaco. */
 export function BrandIntroTransition({
   playKey,
   playing = true,
@@ -324,13 +283,13 @@ export function BrandIntroTransition({
       {active && (
         <motion.div
           key={playKey}
-          className="pointer-events-none fixed inset-0 z-[90] overflow-hidden bg-[#0B1220]"
-          initial={{ opacity: 1 }}
+          className="pointer-events-none fixed inset-0 z-[90] flex items-center justify-center overflow-hidden"
+          initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
         >
-          <BrandIntroStage cycleKey={playKey} reduceMotion={reduce} />
+          <BrandIntroStage cycleKey={playKey} lettersOnly reduceMotion={reduce} />
         </motion.div>
       )}
     </AnimatePresence>

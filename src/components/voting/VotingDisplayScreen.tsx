@@ -22,7 +22,6 @@ import {
 } from "@/lib/voting/types";
 import { GameSwap, LiveGameCard, RankingItem, RankingList } from "./GeneralAmbient";
 import { GlowText, HeroText, PulseFrame } from "./LobbyAmbient";
-import { TelonTransition } from "./TelonTransition";
 import { WinnerPodiumReveal } from "./WinnerPodiumReveal";
 import { WordRoulette } from "./WordRoulette";
 
@@ -125,16 +124,14 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
   const [rouletteItems, setRouletteItems] = useState<string[]>([]);
   const [rouletteWinner, setRouletteWinner] = useState("");
   const [visibleScene, setVisibleScene] = useState<DisplayScene>("lobby");
-  const [telonKey, setTelonKey] = useState(0);
-  const [telonPlaying, setTelonPlaying] = useState(false);
-  const [transitionKind, setTransitionKind] = useState<"telon" | "brand">("telon");
+  const [transitionKey, setTransitionKey] = useState(0);
+  const [transitionPlaying, setTransitionPlaying] = useState(false);
 
   const lastSpinRef = useRef<string | null>(null);
   const firstSceneReady = useRef(false);
   const pendingSceneRef = useRef<DisplayScene | null>(null);
   const visibleSceneRef = useRef<DisplayScene>("lobby");
-  const telonPlayingRef = useRef(false);
-  const transitionKindRef = useRef<"telon" | "brand">("telon");
+  const transitionPlayingRef = useRef(false);
   const fingerprintRef = useRef("");
   const sessionRef = useRef<VotingSession | null>(null);
 
@@ -147,8 +144,8 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
   }, [visibleScene]);
 
   useEffect(() => {
-    telonPlayingRef.current = telonPlaying;
-  }, [telonPlaying]);
+    transitionPlayingRef.current = transitionPlaying;
+  }, [transitionPlaying]);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -158,14 +155,11 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
     // Mismo tipo de escena (ej. solo cambia el juego activo): actualiza sin transición.
     if (nextScene === visibleSceneRef.current) return;
     pendingSceneRef.current = nextScene;
-    if (telonPlayingRef.current) return;
-    // Votación: animación de marca TAVA; el resto: telón.
-    const kind: "telon" | "brand" = nextScene === "voting" ? "brand" : "telon";
-    transitionKindRef.current = kind;
-    setTransitionKind(kind);
-    setTelonPlaying(true);
-    telonPlayingRef.current = true;
-    setTelonKey((key) => key + 1);
+    if (transitionPlayingRef.current) return;
+    // Sin telón: siempre la animación lenta de letras TAVA.
+    setTransitionPlaying(true);
+    transitionPlayingRef.current = true;
+    setTransitionKey((key) => key + 1);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -246,22 +240,22 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
     };
   }, [refresh]);
 
-  const handleTelonMidpoint = useCallback(() => {
+  const handleTransitionMidpoint = useCallback(() => {
     if (pendingSceneRef.current) {
       setVisibleScene(pendingSceneRef.current);
       visibleSceneRef.current = pendingSceneRef.current;
     }
   }, []);
 
-  const handleTelonComplete = useCallback(() => {
+  const handleTransitionComplete = useCallback(() => {
     if (pendingSceneRef.current) {
       setVisibleScene(pendingSceneRef.current);
       visibleSceneRef.current = pendingSceneRef.current;
     }
     const pending = pendingSceneRef.current;
     pendingSceneRef.current = null;
-    setTelonPlaying(false);
-    telonPlayingRef.current = false;
+    setTransitionPlaying(false);
+    transitionPlayingRef.current = false;
 
     const latestSession = sessionRef.current;
     if (pending && latestSession) {
@@ -293,23 +287,12 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
     );
   }
 
-  const atmosphereScene =
-    visibleScene === "lobby"
-      ? "lobby"
-      : visibleScene === "general" || visibleScene === "games"
-        ? "general"
-        : null;
+  const atmosphereVariant =
+    visibleScene === "lobby" ? "lobby" : ("general" as const);
 
   return (
     <div className="relative isolate h-[100dvh] overflow-hidden bg-tava-blue text-white">
-      {atmosphereScene ? (
-        <ShowAtmosphere variant={atmosphereScene} />
-      ) : (
-        <>
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,198,0,0.18),transparent_40%),radial-gradient(circle_at_80%_10%,rgba(214,26,33,0.22),transparent_35%),radial-gradient(circle_at_50%_90%,rgba(255,255,255,0.08),transparent_45%)]" />
-          <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(#ffc600_0.8px,transparent_0.8px)] [background-size:18px_18px]" />
-        </>
-      )}
+      <ShowAtmosphere variant={atmosphereVariant} />
 
       <WordRoulette
         items={rouletteItems}
@@ -321,21 +304,12 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
         onComplete={() => setRouletteOpen(false)}
       />
 
-      {transitionKind === "brand" ? (
-        <BrandIntroTransition
-          playKey={telonKey}
-          playing={telonPlaying}
-          onMidpoint={handleTelonMidpoint}
-          onComplete={handleTelonComplete}
-        />
-      ) : (
-        <TelonTransition
-          playKey={telonKey}
-          playing={telonPlaying}
-          onMidpoint={handleTelonMidpoint}
-          onComplete={handleTelonComplete}
-        />
-      )}
+      <BrandIntroTransition
+        playKey={transitionKey}
+        playing={transitionPlaying}
+        onMidpoint={handleTransitionMidpoint}
+        onComplete={handleTransitionComplete}
+      />
 
       <ProjectorChrome />
 
@@ -568,41 +542,69 @@ function SceneContent({
           </div>
         </section>
 
-        <section className="flex min-h-0 flex-col gap-4">
+        <section className="flex min-h-0 flex-col gap-3">
           {rules && (
-            <div className="rounded-3xl border-4 border-tava-yellow bg-white px-5 py-5 text-tava-blue shadow-[8px_8px_0_rgba(11,18,32,0.3)]">
+            <div className="rounded-3xl border-4 border-tava-yellow bg-white px-5 py-4 text-tava-blue shadow-[8px_8px_0_rgba(11,18,32,0.3)]">
               <p className="font-hand text-2xl text-tava-red">Info del show</p>
-              <p className="mt-2 max-h-[28vh] overflow-y-auto whitespace-pre-wrap font-display text-xl leading-snug sm:text-2xl">
+              <p className="mt-2 max-h-[18vh] overflow-y-auto whitespace-pre-wrap font-display text-lg leading-snug sm:text-xl">
                 {rules}
               </p>
             </div>
           )}
 
-          <div className="min-h-0 flex-1 rounded-3xl border border-white/20 bg-white/10 px-4 py-4">
+          <div className="min-h-0 flex-1 rounded-3xl border border-white/20 bg-white/10 px-4 py-3">
             <p className="text-center font-hand text-2xl text-tava-yellow">Ranking</p>
             {topResults.length === 0 ? (
-              <p className="mt-6 text-center text-white/50">Sin votos aun</p>
+              <p className="mt-4 text-center text-white/50">Sin votos aun</p>
             ) : (
-              <RankingList version={rankingVersion} className="mt-3 space-y-2">
+              <RankingList version={rankingVersion} className="mt-2 space-y-1.5">
                 {topResults.map((r, index) => (
                   <RankingItem
                     key={r.artist.id}
                     index={index}
-                    className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${
+                    className={`flex items-center gap-3 rounded-2xl px-3 py-2 ${
                       index === 0
                         ? "bg-tava-yellow text-tava-blue"
                         : "bg-white/10 text-white"
                     }`}
                   >
-                    <span className="w-8 font-display text-2xl">{index + 1}</span>
-                    <span className="min-w-0 flex-1 truncate font-display text-xl sm:text-2xl">
+                    <span className="w-8 font-display text-xl sm:text-2xl">{index + 1}</span>
+                    <span className="min-w-0 flex-1 truncate font-display text-lg sm:text-xl">
                       {r.artist.name}
                     </span>
-                    <span className="font-display text-2xl">{r.totalPoints}</span>
+                    <span className="font-display text-xl sm:text-2xl">{r.totalPoints}</span>
                   </RankingItem>
                 ))}
               </RankingList>
             )}
+          </div>
+
+          <div className="flex items-center gap-3 rounded-3xl border-4 border-tava-yellow bg-white p-3 text-tava-blue shadow-[6px_6px_0_rgba(11,18,32,0.3)]">
+            <PulseFrame radiusClass="rounded-2xl" className="shrink-0">
+              <div className="rounded-2xl border-2 border-tava-yellow bg-white p-1.5">
+                {qrSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={qrSrc}
+                    alt={`QR ${session.code}`}
+                    className="h-24 w-24 sm:h-28 sm:w-28"
+                  />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center text-xs font-bold text-tava-blue sm:h-28 sm:w-28">
+                    QR…
+                  </div>
+                )}
+              </div>
+            </PulseFrame>
+            <div className="min-w-0 flex-1">
+              <p className="font-hand text-xl text-tava-red sm:text-2xl">Llegas tarde?</p>
+              <p className="font-display text-sm tracking-wide text-tava-blue/80 sm:text-base">
+                Escanea o escribe el codigo
+              </p>
+              <GlowText className="mt-1 font-display text-3xl tracking-[0.18em] text-tava-blue sm:text-4xl">
+                {session.code}
+              </GlowText>
+            </div>
           </div>
         </section>
       </div>

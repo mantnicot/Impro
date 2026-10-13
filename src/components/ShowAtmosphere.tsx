@@ -132,14 +132,14 @@ export default function ShowAtmosphere({ variant = "lobby", className = "" }: Pr
         />
       ))}
 
-      {/* Viñeta (respira apenas) */}
+      {/* Viñeta suave (poco opaca para no tapar el fondo) */}
       <motion.div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(ellipse at center, transparent ${lobby ? 48 : 42}%, rgba(5,10,25,${lobby ? 0.7 : 0.82}) 100%)`,
+          background: `radial-gradient(ellipse at center, transparent ${lobby ? 55 : 50}%, rgba(5,10,25,${lobby ? 0.28 : 0.35}) 100%)`,
         }}
-        animate={reduce ? undefined : { opacity: [0.85, 1] }}
-        transition={mirror(8)}
+        animate={reduce ? undefined : { opacity: [0.75, 1] }}
+        transition={mirror(16)}
       />
     </div>
   );
