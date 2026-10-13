@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import ShowAtmosphere from "@/components/ShowAtmosphere";
 import { ShowBrandTitle } from "@/components/ShowBrandTitle";
 import {
   detectGameModeHint,
@@ -18,6 +19,8 @@ import {
   type VotingSession,
   type VotingSummary,
 } from "@/lib/voting/types";
+import { GameSwap, LiveGameCard, RankingItem, RankingList } from "./GeneralAmbient";
+import { GlowText, HeroText, PulseFrame } from "./LobbyAmbient";
 import { TelonTransition } from "./TelonTransition";
 import { WinnerPodiumReveal } from "./WinnerPodiumReveal";
 import { WordRoulette } from "./WordRoulette";
@@ -283,10 +286,23 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
     );
   }
 
+  const atmosphereScene =
+    visibleScene === "lobby"
+      ? "lobby"
+      : visibleScene === "general" || visibleScene === "games"
+        ? "general"
+        : null;
+
   return (
-    <div className="relative h-[100dvh] overflow-hidden bg-tava-blue text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,198,0,0.18),transparent_40%),radial-gradient(circle_at_80%_10%,rgba(214,26,33,0.22),transparent_35%),radial-gradient(circle_at_50%_90%,rgba(255,255,255,0.08),transparent_45%)]" />
-      <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(#ffc600_0.8px,transparent_0.8px)] [background-size:18px_18px]" />
+    <div className="relative isolate h-[100dvh] overflow-hidden bg-tava-blue text-white">
+      {atmosphereScene ? (
+        <ShowAtmosphere variant={atmosphereScene} />
+      ) : (
+        <>
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,198,0,0.18),transparent_40%),radial-gradient(circle_at_80%_10%,rgba(214,26,33,0.22),transparent_35%),radial-gradient(circle_at_50%_90%,rgba(255,255,255,0.08),transparent_45%)]" />
+          <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(#ffc600_0.8px,transparent_0.8px)] [background-size:18px_18px]" />
+        </>
+      )}
 
       <WordRoulette
         items={rouletteItems}
@@ -386,27 +402,34 @@ function SceneContent({
       <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <div>
           <p className="font-hand text-3xl text-tava-yellow sm:text-4xl">Entren al show</p>
-          <h1 className="mt-2 font-display text-6xl leading-none tracking-wide text-white sm:text-7xl md:text-8xl">
-            ESCANEEN EL QR
-          </h1>
+          <HeroText>
+            <h1 className="mt-2 font-display text-6xl leading-none tracking-wide text-white sm:text-7xl md:text-8xl">
+              ESCANEEN EL QR
+            </h1>
+          </HeroText>
           <p className="mt-4 max-w-xl text-lg text-white/75 sm:text-xl">
             O escriban el codigo en el celular. No hace falta cuenta.
           </p>
-          <p className="mt-8 font-display text-6xl tracking-[0.25em] text-tava-yellow sm:text-7xl">
+          <GlowText className="mt-8 font-display text-6xl tracking-[0.25em] text-tava-yellow sm:text-7xl">
             {session.code}
-          </p>
+          </GlowText>
         </div>
-        <div className="justify-self-center rounded-[2rem] border-4 border-tava-yellow bg-white p-4 shadow-[12px_12px_0_rgba(11,18,32,0.35)]">
-          {qrSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={qrSrc} alt={`QR ${session.code}`} className="h-64 w-64 sm:h-80 sm:w-80" />
-          ) : (
-            <div className="flex h-64 w-64 items-center justify-center text-tava-blue sm:h-80 sm:w-80">
-              Generando QR…
-            </div>
-          )}
-          <p className="mt-3 max-w-[20rem] break-all text-center text-xs text-gray-500">{joinUrl}</p>
-        </div>
+        <PulseFrame
+          className="justify-self-center"
+          radiusClass="rounded-[2rem]"
+        >
+          <div className="rounded-[2rem] border-4 border-tava-yellow bg-white p-4 shadow-[12px_12px_0_rgba(11,18,32,0.35)]">
+            {qrSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={qrSrc} alt={`QR ${session.code}`} className="h-64 w-64 sm:h-80 sm:w-80" />
+            ) : (
+              <div className="flex h-64 w-64 items-center justify-center text-tava-blue sm:h-80 sm:w-80">
+                Generando QR…
+              </div>
+            )}
+            <p className="mt-3 max-w-[20rem] break-all text-center text-xs text-gray-500">{joinUrl}</p>
+          </div>
+        </PulseFrame>
       </div>
     );
   }
@@ -491,6 +514,8 @@ function SceneContent({
     const rules = session.participant_message?.trim() || "";
     const topResults = results.slice(0, 6);
 
+    const rankingVersion = topResults.map((r) => `${r.artist.id}:${r.totalPoints}`).join("|");
+
     return (
       <div className="mx-auto grid h-full w-full max-w-7xl grid-cols-1 gap-4 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6">
         <section className="flex min-h-0 flex-col justify-center gap-3">
@@ -509,15 +534,19 @@ function SceneContent({
             <p className="font-display text-2xl text-white/70">{prev?.name ?? "—"}</p>
           </div>
 
-          <div className="rounded-3xl border-4 border-tava-yellow bg-tava-yellow px-5 py-5 text-tava-blue shadow-[8px_8px_0_rgba(11,18,32,0.35)]">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-tava-red">En curso</p>
-            <p className="mt-1 font-display text-4xl leading-tight tracking-wide sm:text-5xl">
-              {current.name}
-            </p>
-            {current.description && (
-              <p className="mt-2 font-hand text-xl text-tava-red sm:text-2xl">{current.description}</p>
-            )}
-          </div>
+          <LiveGameCard radiusClass="rounded-3xl">
+            <GameSwap gameKey={current.id + String(activeIndex)}>
+              <div className="rounded-3xl border-4 border-tava-yellow bg-tava-yellow px-5 py-5 text-tava-blue">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-tava-red">En curso</p>
+                <p className="mt-1 font-display text-4xl leading-tight tracking-wide sm:text-5xl">
+                  {current.name}
+                </p>
+                {current.description && (
+                  <p className="mt-2 font-hand text-xl text-tava-red sm:text-2xl">{current.description}</p>
+                )}
+              </div>
+            </GameSwap>
+          </LiveGameCard>
 
           <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/5 px-4 py-3 opacity-45 blur-[1px]">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Siguiente</p>
@@ -540,10 +569,11 @@ function SceneContent({
             {topResults.length === 0 ? (
               <p className="mt-6 text-center text-white/50">Sin votos aun</p>
             ) : (
-              <div className="mt-3 space-y-2">
+              <RankingList version={rankingVersion} className="mt-3 space-y-2">
                 {topResults.map((r, index) => (
-                  <div
+                  <RankingItem
                     key={r.artist.id}
+                    index={index}
                     className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${
                       index === 0
                         ? "bg-tava-yellow text-tava-blue"
@@ -555,9 +585,9 @@ function SceneContent({
                       {r.artist.name}
                     </span>
                     <span className="font-display text-2xl">{r.totalPoints}</span>
-                  </div>
+                  </RankingItem>
                 ))}
-              </div>
+              </RankingList>
             )}
           </div>
         </section>
