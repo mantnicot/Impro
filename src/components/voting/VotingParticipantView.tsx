@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { clearSession, getSessionCode, getSessionId, getVoterId } from "@/lib/role-storage";
 import {
@@ -8,6 +8,12 @@ import {
   getActiveDailyGame,
   participantsSeeWinnerPodium,
 } from "@/lib/voting/display-scene";
+import {
+  artistsNeedPhotos,
+  mergeArtistPhotos,
+  mergeResultPhotos,
+  resultsNeedPhotos,
+} from "@/lib/voting/artist-photos";
 import { formatSubmissionDisplay } from "@/lib/voting/submission-display";
 import {
   currentDrawnObject,
@@ -268,9 +274,12 @@ export function VotingParticipantView() {
   const [activeArtistIndex, setActiveArtistIndex] = useState(0);
   const [firstLoad, setFirstLoad] = useState(true);
   const [error, setError] = useState("");
+  const [audienceClosed, setAudienceClosed] = useState(false);
+  const audienceClosedRef = useRef(false);
   const [rouletteOpen, setRouletteOpen] = useState(false);
   const [rouletteItems, setRouletteItems] = useState<string[]>([]);
   const [rouletteWinner, setRouletteWinner] = useState("");
+  const wantPhotosRef = useRef(true);
 
   const maybeShowRoulette = useCallback((nextSession: VotingSession) => {
     if (!sessionId) return;
@@ -307,14 +316,32 @@ export function VotingParticipantView() {
   const refresh = useCallback(async () => {
     if (!code) return;
     try {
+      const withPhotos = wantPhotosRef.current;
       const res = await fetch(
-        `/api/voting/session?code=${encodeURIComponent(code)}&voterId=${encodeURIComponent(voterId)}`
+        `/api/voting/session?code=${encodeURIComponent(code)}&voterId=${encodeURIComponent(voterId)}${
+          withPhotos ? "&includePhotos=1" : ""
+        }`
       );
       const data = await res.json();
+      if (data.audienceClosed) {
+        audienceClosedRef.current = true;
+        setAudienceClosed(true);
+        return;
+      }
       if (!res.ok) throw new Error(data.error);
       setSession(data.session);
-      setArtists(data.artists ?? []);
-      setResults(data.results ?? []);
+      const incomingArtists = (data.artists ?? []) as Artist[];
+      const incomingResults = (data.results ?? []) as ArtistResult[];
+      let needPhotos = false;
+      setArtists((prev) => {
+        if (!withPhotos && artistsNeedPhotos(prev, incomingArtists)) needPhotos = true;
+        return mergeArtistPhotos(prev, incomingArtists);
+      });
+      setResults((prev) => {
+        if (!withPhotos && resultsNeedPhotos(prev, incomingResults)) needPhotos = true;
+        return mergeResultPhotos(prev, incomingResults);
+      });
+      wantPhotosRef.current = withPhotos ? false : needPhotos;
 
       const map: Record<string, number> = {};
       for (const v of (data.myVotes ?? []) as MyVote[]) map[v.artist_id] = v.value;
@@ -337,7 +364,7 @@ export function VotingParticipantView() {
   useEffect(() => {
     let cancelled = false;
     const tick = () => {
-      if (cancelled || document.hidden) return;
+      if (cancelled || document.hidden || audienceClosedRef.current) return;
       void refresh();
     };
     tick();
@@ -352,6 +379,15 @@ export function VotingParticipantView() {
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (!audienceClosed) return;
+    const t = window.setTimeout(() => {
+      clearSession();
+      window.location.reload();
+    }, 2800);
+    return () => window.clearTimeout(t);
+  }, [audienceClosed]);
 
   useEffect(() => {
     setActiveArtistIndex((index) => Math.min(index, Math.max(artists.length - 1, 0)));
@@ -507,6 +543,18 @@ export function VotingParticipantView() {
       </div>
     </section>
   );
+
+  if (audienceClosed) {
+    return (
+      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-theater-gradient px-6 text-center text-white">
+        <p className="font-hand text-4xl text-tava-yellow">Gracias</p>
+        <h2 className="mt-2 font-display text-4xl tracking-wide">LA SALA SE CERRO</h2>
+        <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/80">
+          Gracias por participar. Esta pantalla vuelve al inicio.
+        </p>
+      </div>
+    );
+  }
 
   if (firstLoad) {
     return (

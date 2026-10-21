@@ -2,6 +2,8 @@ export interface DailyGame {
   id: string;
   name: string;
   description: string;
+  /** Segundos. Si no viene, el tiempo lo define el admin en vivo. */
+  duration_seconds?: number;
 }
 
 export interface VotingSession {
@@ -21,8 +23,12 @@ export interface VotingSession {
   roulette_spun_at: string | null;
   /** Solo proyector/TV. No cambia la UI de participantes. */
   display_scene: string;
+  /** Si esta en el futuro, los celulares salen y no pueden volver a entrar. */
+  audience_closed_until: string | null;
   /** Índice del juego activo (guardado dentro de daily_games JSON, sin columna extra). */
   active_game_index: number;
+  /** Fin del reloj del proyector. Vacío si no hay tiempo corriendo. */
+  timer_ends_at: string | null;
   created_at: string;
 }
 
@@ -33,8 +39,10 @@ export interface Artist {
   color: string;
   avatar_gender: "male" | "female";
   tagline: string;
-  /** Data URL de la foto cutout (solo esta noche). */
+  /** Data URL de la foto cutout (solo esta noche). No viaja en cada poll. */
   photo_data?: string | null;
+  /** Marca corta para saber si la foto cambió sin reenviar el archivo. */
+  photo_rev?: string;
   sort_order: number;
   created_at: string;
 }

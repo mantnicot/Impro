@@ -10,9 +10,17 @@ import {
   SUBMISSION_PRESETS,
 } from "@/lib/voting/submission-prompt";
 import { ARTIST_COLORS, ARTIST_TAGLINES } from "@/lib/voting/artist-style";
+import {
+  artistsNeedPhotos,
+  mergeArtistPhotos,
+  mergeResultPhotos,
+  resultsNeedPhotos,
+} from "@/lib/voting/artist-photos";
 import { fileToArtistPhotoData } from "@/lib/voting/compress-photo";
 import type { Artist, ArtistResult, DailyGame, VotingSession, VotingSummary } from "@/lib/voting/types";
 import { clampGameIndex, parseGamesFromPaste } from "@/lib/voting/parse-games-paste";
+import { formatClock, formatGameDuration, gameDurationSeconds, remainingMs } from "@/lib/voting/daily-games-payload";
+import { formatAudienceLock, isAudienceClosed } from "@/lib/voting/audience-lock";
 import type { DisplayScene } from "@/lib/voting/display-scene";
 import { ArtistIdentityCard } from "./ArtistIdentityCard";
 import { LiveScoreboard } from "./LiveScoreboard";
@@ -59,6 +67,8 @@ const emptySummary: VotingSummary = {
   objectSubmissionCount: 0,
 };
 
+const TIMER_PRESETS = [30, 60, 120, 180, 300];
+
 const fieldClass =
   "min-h-12 w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-base text-gray-900 outline-none focus:border-tava-purple";
 
@@ -91,6 +101,9 @@ export function VotingAdminPanel() {
   const [allSessions, setAllSessions] = useState<SessionListItem[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
   const configTouchedRef = useRef(false);
+  const stepRef = useRef(step);
+  const wantPhotosRef = useRef(true);
+  stepRef.current = step;
 
   const applySessionConfig = useCallback((nextSession: VotingSession | null | undefined) => {
     if (configTouchedRef.current || !nextSession) return;
@@ -105,12 +118,27 @@ export function VotingAdminPanel() {
   const refresh = useCallback(async () => {
     if (!code) return;
     try {
-      const res = await fetch(`/api/voting/session?code=${encodeURIComponent(code)}&includeResults=true`);
+      const withPhotos = stepRef.current === "jugadores" || wantPhotosRef.current;
+      const res = await fetch(
+        `/api/voting/session?code=${encodeURIComponent(code)}&includeResults=true${
+          withPhotos ? "&includePhotos=1" : ""
+        }`
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSession(data.session);
-      setArtists(data.artists ?? []);
-      setLiveResults(data.results ?? []);
+      const incomingArtists = (data.artists ?? []) as Artist[];
+      const incomingResults = (data.results ?? []) as ArtistResult[];
+      let needPhotos = false;
+      setArtists((prev) => {
+        if (!withPhotos && artistsNeedPhotos(prev, incomingArtists)) needPhotos = true;
+        return mergeArtistPhotos(prev, incomingArtists);
+      });
+      setLiveResults((prev) => {
+        if (!withPhotos && resultsNeedPhotos(prev, incomingResults)) needPhotos = true;
+        return mergeResultPhotos(prev, incomingResults);
+      });
+      wantPhotosRef.current = withPhotos ? stepRef.current === "jugadores" : needPhotos;
       setSummary(data.summary ?? emptySummary);
       applySessionConfig(data.session);
       setError("");
@@ -427,6 +455,20 @@ export function VotingAdminPanel() {
     setDailyGames((prev) => prev.map((game) => (game.id === id ? { ...game, ...updates } : game)));
   };
 
+  const setGameDuration = (id: string, seconds: number | null) => {
+    configTouchedRef.current = true;
+    setDailyGames((prev) =>
+      prev.map((game) => {
+        if (game.id !== id) return game;
+        if (seconds == null || seconds <= 0) {
+          const { duration_seconds: _omit, ...rest } = game;
+          return rest;
+        }
+        return { ...game, duration_seconds: seconds };
+      })
+    );
+  };
+
   const removeDailyGame = (id: string) => {
     configTouchedRef.current = true;
     setDailyGames((prev) => {
@@ -475,6 +517,17 @@ export function VotingAdminPanel() {
     }
   };
 
+  const closeAudience = async () => {
+    if (
+      !window.confirm(
+        "Cerrar la sala en todos los celulares por 2 horas? La proyeccion y este panel siguen abiertos."
+      )
+    ) {
+      return;
+    }
+    await patchSession({ action: "close_audience" }, "close-audience");
+  };
+
   const drawObjects = async () => {
     setBusyAction("draw-objects");
     setError("");
@@ -506,6 +559,9 @@ export function VotingAdminPanel() {
   const possibleVotes = summary.currentRoundParticipantCount * Math.max(artists.length, 1);
   const statusCopy = useMemo(() => {
     if (!session) return "Sin sesion";
+    if (session.audience_closed_until && isAudienceClosed(session.audience_closed_until)) {
+      return `Publico fuera hasta ${formatAudienceLock(session.audience_closed_until)}`;
+    }
     if (session.display_scene === "winner") return "Podio en pantalla (Ganador)";
     if (session.object_collection_open) return "Recibiendo objetos";
     if (session.is_open) return "Votacion abierta";
@@ -598,7 +654,11 @@ export function VotingAdminPanel() {
               <h2 className="font-display text-lg font-bold text-gray-800">Juegos en curso</h2>
               <p className="text-xs text-gray-500">
                 {dailyGames[activeGameIndex]?.name
-                  ? `Ahora: ${dailyGames[activeGameIndex]!.name}`
+                  ? `Ahora: ${dailyGames[activeGameIndex]!.name}${
+                      gameDurationSeconds(dailyGames[activeGameIndex])
+                        ? ` · ${formatGameDuration(gameDurationSeconds(dailyGames[activeGameIndex])!)}`
+                        : " · tiempo del admin"
+                    }`
                   : "Sin juegos cargados (ve a Prep)."}
               </p>
               <div className="mt-3 grid grid-cols-2 gap-2">
@@ -621,6 +681,44 @@ export function VotingAdminPanel() {
                   className="min-h-12 rounded-xl bg-tava-yellow text-sm font-black text-tava-blue disabled:opacity-40"
                 >
                   Siguiente →
+                </button>
+              </div>
+              <LiveClock endsAt={session.timer_ends_at} />
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {gameDurationSeconds(dailyGames[activeGameIndex]) != null && (
+                  <button
+                    type="button"
+                    disabled={!!busyAction}
+                    onClick={() =>
+                      void patchSession(
+                        { timer_seconds: gameDurationSeconds(dailyGames[activeGameIndex]) },
+                        "timer"
+                      )
+                    }
+                    className="col-span-2 min-h-12 rounded-xl bg-tava-blue text-sm font-black text-white disabled:opacity-50"
+                  >
+                    Iniciar reloj del juego (
+                    {formatGameDuration(gameDurationSeconds(dailyGames[activeGameIndex])!)})
+                  </button>
+                )}
+                {TIMER_PRESETS.map((seconds) => (
+                  <button
+                    key={seconds}
+                    type="button"
+                    disabled={!!busyAction}
+                    onClick={() => void patchSession({ timer_seconds: seconds }, "timer")}
+                    className="min-h-11 rounded-xl border border-tava-blue/20 bg-blue-50 text-sm font-black text-tava-blue disabled:opacity-50"
+                  >
+                    {formatGameDuration(seconds)}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={!!busyAction || !session.timer_ends_at}
+                  onClick={() => void patchSession({ clear_timer: true }, "timer-clear")}
+                  className="col-span-2 min-h-11 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 disabled:opacity-40"
+                >
+                  Quitar reloj
                 </button>
               </div>
             </section>
@@ -651,6 +749,28 @@ export function VotingAdminPanel() {
                 Para mostrar el podio en TV y celulares, usa el botón <strong>Ganador</strong> en Pantalla
                 del show.
               </p>
+            </section>
+
+            <section className="rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
+              <h2 className="font-display text-lg font-bold text-red-800">Cerrar al publico</h2>
+              <p className="mt-1 text-xs leading-relaxed text-red-800/80">
+                Saca todos los celulares de la sala. La proyeccion y este panel siguen. Nadie puede
+                volver a entrar durante 2 horas.
+              </p>
+              {session.audience_closed_until && isAudienceClosed(session.audience_closed_until) ? (
+                <p className="mt-3 rounded-xl bg-white px-3 py-3 text-sm font-bold text-red-700">
+                  Publico fuera hasta las {formatAudienceLock(session.audience_closed_until)}.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!!busyAction}
+                  onClick={() => void closeAudience()}
+                  className="mt-3 min-h-12 w-full rounded-xl bg-red-600 text-sm font-black text-white disabled:opacity-50"
+                >
+                  {busyAction === "close-audience" ? "Cerrando..." : "Cerrar sala en los celulares"}
+                </button>
+              )}
             </section>
 
             <section className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm">
@@ -864,7 +984,7 @@ export function VotingAdminPanel() {
                 </div>
               )}
 
-              <div className="mt-3 max-h-[22rem] space-y-2 overflow-y-auto overscroll-contain pr-1">
+              <div className="mt-3 max-h-[34rem] space-y-2 overflow-y-auto overscroll-contain pr-1">
                 {dailyGames.length === 0 && (
                   <p className="rounded-xl bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
                     Todavia no hay juegos. Pegalos arriba o agrega uno.
@@ -911,6 +1031,11 @@ export function VotingAdminPanel() {
                         onChange={(e) => updateDailyGame(game.id, { description: e.target.value })}
                         placeholder="Descripcion (opcional)"
                         className="mt-1.5 min-h-9 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-xs text-gray-700 outline-none focus:border-tava-purple"
+                      />
+                      <GameDurationFields
+                        seconds={gameDurationSeconds(game)}
+                        onAdmin={() => setGameDuration(game.id, null)}
+                        onFixed={(seconds) => setGameDuration(game.id, seconds)}
                       />
                     </div>
                   );
@@ -1382,11 +1507,108 @@ export function VotingAdminPanel() {
   );
 }
 
+function LiveClock({ endsAt }: { endsAt: string | null | undefined }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!endsAt) return;
+    const tick = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(tick);
+  }, [endsAt]);
+  const left = remainingMs(endsAt, now);
+  if (left == null) return null;
+  const urgent = left <= 10_000;
+  const warn = left <= 30_000;
+  return (
+    <p
+      className={`mt-3 text-center font-display text-5xl tracking-wide ${
+        urgent ? "text-red-600" : warn ? "text-amber-600" : "text-tava-blue"
+      }`}
+    >
+      {formatClock(left)}
+    </p>
+  );
+}
+
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-xl bg-gray-50 p-3">
       <p className="text-[10px] font-bold uppercase text-gray-400">{label}</p>
       <p className="font-display text-2xl font-black text-gray-800">{value}</p>
+    </div>
+  );
+}
+
+function GameDurationFields({
+  seconds,
+  onAdmin,
+  onFixed,
+}: {
+  seconds: number | null;
+  onAdmin: () => void;
+  onFixed: (seconds: number) => void;
+}) {
+  const fixed = seconds != null;
+  const total = seconds ?? 180;
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+
+  const apply = (nextMins: number, nextSecs: number) => {
+    const clampedMins = Math.max(0, Math.min(60, Math.floor(nextMins) || 0));
+    const clampedSecs = Math.max(0, Math.min(59, Math.floor(nextSecs) || 0));
+    const sum = Math.min(60 * 60, clampedMins * 60 + clampedSecs);
+    onFixed(sum > 0 ? sum : 15);
+  };
+
+  return (
+    <div className="mt-1.5">
+      <div className="grid grid-cols-2 gap-1.5">
+        <button
+          type="button"
+          onClick={onAdmin}
+          className={`min-h-9 rounded-lg px-2 text-[11px] font-black ${
+            fixed ? "bg-white text-gray-500" : "bg-tava-blue text-white"
+          }`}
+        >
+          Lo define el admin
+        </button>
+        <button
+          type="button"
+          onClick={() => onFixed(seconds && seconds > 0 ? seconds : 180)}
+          className={`min-h-9 rounded-lg px-2 text-[11px] font-black ${
+            fixed ? "bg-tava-yellow text-tava-blue" : "bg-white text-gray-500"
+          }`}
+        >
+          Tiempo fijo
+        </button>
+      </div>
+      {fixed && (
+        <div className="mt-1.5 flex items-center gap-2">
+          <label className="flex items-center gap-1 text-[10px] font-black uppercase text-gray-500">
+            Min
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={60}
+              value={mins}
+              onChange={(e) => apply(Number(e.target.value), secs)}
+              className="h-9 w-14 rounded-lg border border-gray-200 bg-white px-2 text-sm font-bold text-gray-900"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-[10px] font-black uppercase text-gray-500">
+            Seg
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={59}
+              value={secs}
+              onChange={(e) => apply(mins, Number(e.target.value))}
+              className="h-9 w-14 rounded-lg border border-gray-200 bg-white px-2 text-sm font-bold text-gray-900"
+            />
+          </label>
+        </div>
+      )}
     </div>
   );
 }

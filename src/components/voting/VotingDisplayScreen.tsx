@@ -12,6 +12,7 @@ import {
   shouldShowStageRoulette,
   type DisplayScene,
 } from "@/lib/voting/display-scene";
+import { mergeResultPhotos, resultsNeedPhotos } from "@/lib/voting/artist-photos";
 import {
   currentDrawnObject,
   type ArtistResult,
@@ -22,6 +23,8 @@ import {
 import { GameSwap, LiveGameCard, RankingItem, RankingList } from "./GeneralAmbient";
 import { GlowText, HeroText, PulseFrame } from "./LobbyAmbient";
 import { TelonTransition } from "./TelonTransition";
+import { TimeUpBroadway } from "./TimeUpBroadway";
+import { formatClock, remainingMs } from "@/lib/voting/daily-games-payload";
 import { WinnerPodiumReveal } from "./WinnerPodiumReveal";
 import { WordRoulette } from "./WordRoulette";
 
@@ -114,6 +117,31 @@ function sessionFingerprint(session: VotingSession): string {
   ].join("|");
 }
 
+function StageClock({ ms }: { ms: number }) {
+  const urgent = ms <= 10_000;
+  const warn = ms <= 30_000;
+  return (
+    <div className="pointer-events-none fixed right-4 top-20 z-[110] sm:right-6 sm:top-24">
+      <div
+        className={`flex h-24 w-24 items-center justify-center rounded-full border-4 shadow-[6px_6px_0_rgba(11,18,32,0.45)] sm:h-28 sm:w-28 ${
+          urgent
+            ? "animate-pulse border-tava-red bg-tava-blue"
+            : warn
+              ? "border-amber-400 bg-tava-blue"
+              : "border-tava-yellow bg-tava-blue"
+        }`}
+      >
+        <p
+          className="font-display text-3xl tracking-wide text-[#FFF3D1] sm:text-4xl"
+          style={{ textShadow: "3px 3px 0 #D61A21" }}
+        >
+          {formatClock(ms)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
   const [session, setSession] = useState<VotingSession | null>(null);
   const [results, setResults] = useState<ArtistResult[]>([]);
@@ -127,6 +155,8 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
   const [transitionKey, setTransitionKey] = useState(0);
   const [transitionPlaying, setTransitionPlaying] = useState(false);
   const [transitionKind, setTransitionKind] = useState<"telon" | "brand">("telon");
+  const [now, setNow] = useState(() => Date.now());
+  const [timeUpKey, setTimeUpKey] = useState(0);
 
   const lastSpinRef = useRef<string | null>(null);
   const firstSceneReady = useRef(false);
@@ -135,6 +165,9 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
   const transitionPlayingRef = useRef(false);
   const fingerprintRef = useRef("");
   const sessionRef = useRef<VotingSession | null>(null);
+  const wantPhotosRef = useRef(true);
+  const playedTimerRef = useRef<string | null>(null);
+  const sawTimerRef = useRef<string | null>(null);
 
   useEffect(() => {
     setJoinUrl(`${window.location.origin}/?join=${encodeURIComponent(code)}`);
@@ -152,6 +185,29 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
     sessionRef.current = session;
   }, [session]);
 
+  useEffect(() => {
+    if (!session?.timer_ends_at) return;
+    const tick = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(tick);
+  }, [session?.timer_ends_at]);
+
+  const timerLeft = remainingMs(session?.timer_ends_at, now);
+
+  useEffect(() => {
+    const ends = session?.timer_ends_at;
+    if (!ends || timerLeft == null) return;
+    if (timerLeft > 0) {
+      sawTimerRef.current = ends;
+      return;
+    }
+    if (playedTimerRef.current === ends) return;
+    const endedAt = Date.parse(ends);
+    const fresh = sawTimerRef.current === ends || Date.now() - endedAt < 8000;
+    playedTimerRef.current = ends;
+    if (!fresh) return;
+    setTimeUpKey((key) => key + 1);
+  }, [session?.timer_ends_at, timerLeft]);
+
   const applySceneChange = useCallback((nextScene: DisplayScene) => {
     // Mismo tipo de escena (ej. solo cambia el juego activo): actualiza sin transición.
     if (nextScene === visibleSceneRef.current) return;
@@ -166,8 +222,11 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
 
   const refresh = useCallback(async () => {
     try {
+      const withPhotos = wantPhotosRef.current;
       const res = await fetch(
-        `/api/voting/session?code=${encodeURIComponent(code)}&includeResults=true`,
+        `/api/voting/session?code=${encodeURIComponent(code)}&includeResults=true${
+          withPhotos ? "&includePhotos=1" : ""
+        }`,
         { cache: "no-store" }
       );
       const data = await res.json();
@@ -178,7 +237,11 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
       fingerprintRef.current = fp;
 
       setSession(next);
-      setResults(data.results ?? []);
+      const incoming = (data.results ?? []) as ArtistResult[];
+      setResults((prev) => {
+        wantPhotosRef.current = !withPhotos && resultsNeedPhotos(prev, incoming);
+        return mergeResultPhotos(prev, incoming);
+      });
       setSummary(data.summary ?? emptySummary);
       setError("");
 
@@ -230,7 +293,7 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
       void refresh();
     };
     tick();
-    const t = window.setInterval(tick, 1000);
+    const t = window.setInterval(tick, 2500);
     const onVisibility = () => {
       if (!document.hidden) tick();
     };
@@ -321,6 +384,9 @@ export function VotingDisplayScreen({ code }: VotingDisplayScreenProps) {
           onComplete={handleTransitionComplete}
         />
       )}
+
+      {timerLeft != null && timerLeft > 0 && <StageClock ms={timerLeft} />}
+      <TimeUpBroadway playKey={timeUpKey} onComplete={() => undefined} />
 
       <ProjectorChrome />
 

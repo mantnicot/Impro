@@ -19,6 +19,8 @@ import {
   parseDailyGamesPayload,
   serializeDailyGamesPayload,
 } from "@/lib/voting/daily-games-payload";
+import { artistForPoll } from "@/lib/voting/artist-photos";
+import { AUDIENCE_LOCK_MS, isAudienceClosed } from "@/lib/voting/audience-lock";
 import { clampGameIndex } from "@/lib/voting/parse-games-paste";
 import type {
   Artist,
@@ -63,7 +65,9 @@ function normalizeSession(session: StoredSession): Omit<StoredSession, "admin_pi
     roulette_candidates: safeSession.roulette_candidates ?? [],
     roulette_spun_at: safeSession.roulette_spun_at ?? null,
     display_scene: resolveDisplayScene(safeSession.display_scene),
+    audience_closed_until: safeSession.audience_closed_until ?? null,
     active_game_index: gamesPayload.activeIndex,
+    timer_ends_at: gamesPayload.timerEndsAt,
   };
 }
 
@@ -158,12 +162,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Sesion no encontrada" }, { status: 404 });
     }
 
+    if (voterId && isAudienceClosed(session.audience_closed_until)) {
+      return NextResponse.json(
+        {
+          error: "La sala esta cerrada para el publico.",
+          audienceClosed: true,
+          audience_closed_until: session.audience_closed_until,
+        },
+        { status: 403 }
+      );
+    }
+
     const db = getSupabaseAdmin();
+    const includePhotos = request.nextUrl.searchParams.get("includePhotos") === "1";
     const { data: artists } = await db
       .from("artists")
       .select("*")
       .eq("session_id", session.id)
       .order("sort_order", { ascending: true });
+    const publicArtists = ((artists ?? []) as Artist[]).map((artist) =>
+      artistForPoll(artist, includePhotos)
+    );
 
     const round = session.current_round ?? 1;
     const { data: objectRows } = await db
@@ -195,9 +214,12 @@ export async function GET(request: NextRequest) {
       Boolean(voterId);
 
     if (includeResults) {
-      const { data: votes } = await db.from("votes").select("*").eq("session_id", session.id);
+      const { data: votes } = await db
+        .from("votes")
+        .select("artist_id, value, round, voter_id")
+        .eq("session_id", session.id);
       const safeVotes = (votes ?? []) as Vote[];
-      results = computeResults((artists ?? []) as Artist[], safeVotes);
+      results = computeResults(publicArtists, safeVotes);
       summary = summarizeVotes(safeVotes, round, (objectRows ?? []).length);
     } else {
       summary = {
@@ -211,7 +233,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       session: normalizeSession(session),
-      artists: artists ?? [],
+      artists: publicArtists,
       results,
       summary,
       myVotes,
@@ -285,6 +307,15 @@ export async function POST(request: NextRequest) {
       if (!code) return NextResponse.json({ error: "code required" }, { status: 400 });
       const session = await loadSessionByCode(code);
       if (!session) return NextResponse.json({ error: "Sesion no encontrada" }, { status: 404 });
+      if (isAudienceClosed(session.audience_closed_until)) {
+        return NextResponse.json(
+          {
+            error: "Esta sala esta cerrada para el publico. Puedes volver cuando pasen 2 horas.",
+            audienceClosed: true,
+          },
+          { status: 403 }
+        );
+      }
       return NextResponse.json({ session: normalizeSession(session) });
     }
 
@@ -346,6 +377,33 @@ export async function PATCH(request: NextRequest) {
         .select("*")
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ session: normalizeSession(data as unknown as StoredSession) });
+    }
+
+    if (body.action === "close_audience") {
+      const until = new Date(Date.now() + AUDIENCE_LOCK_MS).toISOString();
+      const { data, error } = await db
+        .from("voting_sessions")
+        .update({
+          audience_closed_until: until,
+          is_open: false,
+          object_collection_open: false,
+        })
+        .eq("id", session.id)
+        .select("*")
+        .single();
+      if (error) {
+        if (isMissingColumnError(error.message)) {
+          return NextResponse.json(
+            {
+              error:
+                "Falta la migracion del cierre al publico. Ejecuta supabase/migration-audience-lock.sql en Supabase.",
+            },
+            { status: 500 }
+          );
+        }
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
       return NextResponse.json({ session: normalizeSession(data as unknown as StoredSession) });
     }
 
@@ -465,14 +523,25 @@ export async function PATCH(request: NextRequest) {
     const currentGames = parseDailyGamesPayload(session.daily_games);
     const wantsGames = Array.isArray(body.daily_games);
     const wantsActiveIndex = typeof body.active_game_index === "number";
-    if (wantsGames || wantsActiveIndex) {
+    const timerSeconds = Number(body.timer_seconds);
+    const wantsTimer = Number.isFinite(timerSeconds) && timerSeconds > 0;
+    const wantsClearTimer = body.clear_timer === true;
+    if (wantsGames || wantsActiveIndex || wantsTimer || wantsClearTimer) {
       const games = wantsGames
         ? parseDailyGamesPayload(body.daily_games).games
         : currentGames.games;
       const nextIndex = wantsActiveIndex
         ? Number(body.active_game_index)
         : currentGames.activeIndex;
-      updates.daily_games = serializeDailyGamesPayload(games, clampGameIndex(nextIndex, games.length));
+      let timerEndsAt = wantsClearTimer ? null : currentGames.timerEndsAt;
+      if (wantsTimer) {
+        timerEndsAt = new Date(Date.now() + Math.min(60 * 60, Math.round(timerSeconds)) * 1000).toISOString();
+      }
+      updates.daily_games = serializeDailyGamesPayload(
+        games,
+        clampGameIndex(nextIndex, games.length),
+        timerEndsAt
+      );
     }
 
     if (typeof body.display_scene === "string") {
