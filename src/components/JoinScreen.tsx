@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { BrandIntroLoop } from "@/components/BrandIntro";
+import TicketBuyButton from "@/components/voting/TicketBuyButton";
+import { TICKET_BUY_URL } from "@/lib/voting/ticket-link";
 import {
   setAdminPin,
   setRole,
@@ -117,7 +119,7 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
   };
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-theater-gradient px-4">
+    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-x-hidden overflow-y-auto bg-theater-gradient px-4 py-8">
       <div className="pointer-events-none absolute inset-0 bg-halftone-dots bg-halftone opacity-40" />
       <BrandIntroLoop size="hero" className="relative z-10 h-[11rem] w-full max-w-sm sm:h-[13rem]" />
       <motion.div
@@ -216,6 +218,11 @@ export function JoinScreen({ onJoined }: JoinScreenProps) {
           </>
         )}
       </motion.div>
+      {TICKET_BUY_URL && (
+        <div className="relative z-10 w-full max-w-md">
+          <TicketBuyButton href={TICKET_BUY_URL} />
+        </div>
+      )}
     </div>
   );
 }
